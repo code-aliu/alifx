@@ -8,7 +8,7 @@ from app.scheduler.jobs import create_scheduler
 from app.api.routes import (
     health, market_data, events, signals, analysis,
     paper_trading, technical_analysis, paper_trading_aliases, regime,
-    market_intel, explainability,
+    market_intel, explainability, reasoning,
 )
 
 setup_logging()
@@ -80,6 +80,7 @@ app.include_router(paper_trading_aliases.router)
 app.include_router(regime.router)
 app.include_router(market_intel.router)
 app.include_router(explainability.router)
+app.include_router(reasoning.router)
 
 
 @app.get("/", tags=["System"])
