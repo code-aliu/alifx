@@ -191,7 +191,13 @@ def get_recent_changes(db: Session, hours: int = 6) -> dict:
 def _avg_sentiment(sentiments: list[str]) -> float:
     if not sentiments:
         return 0.0
-    weights = {"bullish": 1.0, "bearish": -1.0, "neutral": 0.0}
+    # Accept both test-fixture sentiments ("bullish"/"bearish") and
+    # extractor-produced sentiments ("risk_on"/"risk_off")
+    weights = {
+        "bullish": 1.0, "risk_on":  1.0,
+        "bearish": -1.0, "risk_off": -1.0,
+        "neutral": 0.0,
+    }
     return sum(weights.get(s, 0.0) for s in sentiments) / len(sentiments)
 
 
