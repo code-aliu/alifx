@@ -21,9 +21,10 @@ def run_paper_trading_cycle(db: Session) -> dict:
 
 def _auto_execute_signals(db: Session) -> int:
     """Open paper trades for high-confidence BUY/SELL signals that have no open position."""
-    signals      = get_latest_signals(db)
+    signals       = get_latest_signals(db)
     latest_prices = {p["symbol"]: p["close"] for p in get_latest_prices(db)}
-    opened       = 0
+    regime        = _safe_regime(db)
+    opened        = 0
 
     for signal in signals:
         if signal.get("signal") not in ("BUY", "SELL"):
@@ -36,6 +37,15 @@ def _auto_execute_signals(db: Session) -> int:
         if not price:
             continue
 
+        # Build audit snapshot at entry
+        audit = {
+            "signal_id":       signal.get("id"),
+            "signal_reasoning":signal.get("reasoning", []),
+            "contributing_events": signal.get("event_ids", []),
+            "confidence":      signal.get("confidence"),
+            "market_regime":   regime.get("primary_regime") if regime else None,
+        }
+
         trade = open_trade(
             db=db,
             symbol=symbol,
@@ -46,11 +56,32 @@ def _auto_execute_signals(db: Session) -> int:
             signal_id=signal.get("id"),
             confidence=signal.get("confidence"),
             notional=DEFAULT_TRADE_NOTIONAL,
+            audit_data=audit,
         )
         if trade:
             opened += 1
+            # Link this trade back to the signal's outcome record
+            _link_outcome(db, signal.get("id"), trade.id)
 
     return opened
+
+
+def _safe_regime(db: Session) -> dict | None:
+    try:
+        from app.regime.service import get_current_regime
+        return get_current_regime(db)
+    except Exception:
+        return None
+
+
+def _link_outcome(db: Session, signal_id: int | None, trade_id: int) -> None:
+    if not signal_id:
+        return
+    try:
+        from app.signal_tracking.service import link_trade_to_outcome
+        link_trade_to_outcome(db, signal_id, trade_id)
+    except Exception as e:
+        logger.debug(f"Could not link trade {trade_id} to signal outcome: {e}")
 
 
 def get_portfolio_summary(db: Session) -> dict:

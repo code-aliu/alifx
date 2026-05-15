@@ -67,6 +67,19 @@ def _run_paper_trading_cycle() -> None:
         db.close()
 
 
+def _run_outcome_resolution() -> None:
+    from app.signal_tracking.service import resolve_active_outcomes
+    db = SessionLocal()
+    try:
+        resolved = resolve_active_outcomes(db)
+        if resolved:
+            logger.info(f"Scheduler: resolved {resolved} signal outcomes")
+    except Exception as e:
+        logger.error(f"Scheduler: outcome resolution failed: {e}")
+    finally:
+        db.close()
+
+
 def create_scheduler() -> BackgroundScheduler:
     scheduler = BackgroundScheduler(timezone="UTC")
 
@@ -115,6 +128,16 @@ def create_scheduler() -> BackgroundScheduler:
         trigger=IntervalTrigger(seconds=settings.pipeline_run_interval),
         id="paper_trading",
         name="Paper Trading Cycle",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=60,
+    )
+
+    scheduler.add_job(
+        _run_outcome_resolution,
+        trigger=IntervalTrigger(seconds=settings.pipeline_run_interval),
+        id="outcome_resolution",
+        name="Signal Outcome Resolution",
         replace_existing=True,
         max_instances=1,
         misfire_grace_time=60,

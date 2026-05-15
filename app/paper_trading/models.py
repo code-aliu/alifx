@@ -60,6 +60,12 @@ class PaperTrade(Base):
     opened_at:    Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     closed_at:    Mapped[datetime] = mapped_column(DateTime, nullable=True)
 
+    # Audit trail — snapshot of context at open/close
+    regime_at_open:  Mapped[str | None]  = mapped_column(String(50), nullable=True)
+    regime_at_close: Mapped[str | None]  = mapped_column(String(50), nullable=True)
+    audit_entry:     Mapped[dict | None] = mapped_column(JSON, nullable=True)  # signal reasoning + events at open
+    audit_exit:      Mapped[dict | None] = mapped_column(JSON, nullable=True)  # outcome explanation at close
+
     __table_args__ = (
         Index("ix_paper_trades_symbol_status", "symbol", "status"),
         Index("ix_paper_trades_opened_at", "opened_at"),
@@ -98,4 +104,8 @@ class PaperTrade(Base):
             base["unrealized_pnl"]     = upnl
             base["unrealized_pnl_pct"] = upnl_pct
             base["current_price"]      = current_price
+        base["regime_at_open"]  = self.regime_at_open
+        base["regime_at_close"] = self.regime_at_close
+        base["audit_entry"]     = self.audit_entry
+        base["audit_exit"]      = self.audit_exit
         return base

@@ -119,6 +119,14 @@ def _persist_signal(db: Session, data: dict) -> None:
         expires_at=data.get("expires_at"),
     )
     db.add(signal)
+    db.flush()  # populate signal.id before creating outcome
+
+    try:
+        from app.signal_tracking.service import create_signal_outcome
+        signal_dict = signal.to_dict()
+        create_signal_outcome(db, signal_dict)
+    except Exception as e:
+        logger.debug(f"Signal outcome creation skipped: {e}")
 
 
 def _cache_signal(symbol: str, data: dict) -> None:

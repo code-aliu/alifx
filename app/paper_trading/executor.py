@@ -33,6 +33,7 @@ def open_trade(
     signal_id: int | None = None,
     confidence: float | None = None,
     notional: float = DEFAULT_TRADE_NOTIONAL,
+    audit_data: dict | None = None,
 ) -> PaperTrade | None:
     """Open a new paper trade if the portfolio has sufficient balance."""
     portfolio = get_or_create_portfolio(db)
@@ -52,7 +53,8 @@ def open_trade(
         logger.info(f"Paper trading: position already open for {symbol}, skipping")
         return None
 
-    quantity = notional / entry_price
+    quantity     = notional / entry_price
+    regime_label = (audit_data or {}).get("market_regime")
 
     trade = PaperTrade(
         symbol=symbol,
@@ -66,6 +68,8 @@ def open_trade(
         confidence=confidence,
         status="open",
         opened_at=datetime.utcnow(),
+        regime_at_open=regime_label,
+        audit_entry=audit_data,
     )
     db.add(trade)
 
@@ -85,18 +89,22 @@ def close_trade(
     trade: PaperTrade,
     exit_price: float,
     exit_reason: str = "manual",
+    audit_exit: dict | None = None,
 ) -> PaperTrade:
     """Close an open trade, calculate realized PnL, and update the portfolio."""
     portfolio = get_or_create_portfolio(db)
 
     pnl_usd, pnl_pct = trade.unrealized_pnl(exit_price)
 
-    trade.status      = "closed"
-    trade.exit_price  = exit_price
-    trade.exit_reason = exit_reason
-    trade.pnl         = pnl_usd
-    trade.pnl_pct     = pnl_pct
-    trade.closed_at   = datetime.utcnow()
+    exit_explanation = _build_exit_explanation(exit_reason, pnl_usd, pnl_pct, trade)
+
+    trade.status         = "closed"
+    trade.exit_price     = exit_price
+    trade.exit_reason    = exit_reason
+    trade.pnl            = pnl_usd
+    trade.pnl_pct        = pnl_pct
+    trade.closed_at      = datetime.utcnow()
+    trade.audit_exit     = audit_exit or exit_explanation
 
     # Return notional + profit (or minus loss) to portfolio
     portfolio.current_balance += trade.notional + pnl_usd
@@ -116,3 +124,29 @@ def close_trade(
     logger.info(f"Paper trading: closed {trade.direction} {trade.symbol} @ {exit_price} "
                 f"PnL={pnl_usd:+.2f} USD ({pnl_pct:+.2f}%) reason={exit_reason}")
     return trade
+
+
+def _build_exit_explanation(
+    exit_reason: str, pnl_usd: float, pnl_pct: float, trade: PaperTrade
+) -> dict:
+    outcome = "win" if pnl_usd >= 0 else "loss"
+    reason_labels = {
+        "take_profit": "Take-profit target reached — trade closed in profit as planned",
+        "stop_loss":   "Stop-loss triggered — trade closed to limit downside",
+        "manual":      "Trade manually closed by operator",
+        "expired":     "Signal horizon expired — trade closed at current market price",
+    }
+    explanation = reason_labels.get(exit_reason, f"Trade closed: {exit_reason}")
+    if outcome == "win":
+        explanation += f" | Result: +{pnl_usd:.2f} USD (+{pnl_pct:.2f}%)"
+    else:
+        explanation += f" | Result: {pnl_usd:.2f} USD ({pnl_pct:.2f}%)"
+
+    return {
+        "exit_reason":       exit_reason,
+        "outcome":           outcome,
+        "pnl_usd":           round(pnl_usd, 2),
+        "pnl_pct":           round(pnl_pct, 2),
+        "exit_price":        trade.exit_price if trade.exit_price else None,
+        "outcome_explanation": explanation,
+    }
