@@ -28,16 +28,17 @@ class TradingSignal(Base):
 
     def to_dict(self) -> dict:
         return {
-            "id": self.id,
-            "asset": self.asset,
-            "signal": self.signal,
-            "confidence": self.confidence,
+            "id":           self.id,
+            "asset":        self.asset,
+            "signal":       self.signal,
+            "confidence":   self.confidence,
             "time_horizon": self.time_horizon,
-            "risk_level": self.risk_level,
-            "reasoning": self.reasoning,
-            "entry_price": self.entry_price,
-            "stop_loss": self.stop_loss,
-            "take_profit": self.take_profit,
+            "risk_level":   self.risk_level,
+            "reasoning":    self.reasoning,
+            "event_ids":    self.event_ids or [],
+            "entry_price":  self.entry_price,
+            "stop_loss":    self.stop_loss,
+            "take_profit":  self.take_profit,
             "generated_at": self.generated_at.isoformat(),
-            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+            "expires_at":   self.expires_at.isoformat() if self.expires_at else None,
         }

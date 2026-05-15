@@ -39,6 +39,17 @@ def get_asset_risk(symbol: str, db: Session = Depends(get_db)):
     })
 
 
+@router.get("/correlations", response_model=ApiResponse)
+def get_asset_correlations(db: Session = Depends(get_db)):
+    """What assets are correlated?
+
+    Returns Pearson correlation of price returns across all tracked assets,
+    the full correlation matrix, and top pairs ranked by absolute correlation.
+    """
+    result = analysis_service.compute_correlations(db)
+    return ApiResponse(success=True, data=result)
+
+
 @router.get("/{symbol}", response_model=ApiResponse)
 def get_asset_analysis(symbol: str, db: Session = Depends(get_db)):
     """Return full technical analysis for a single asset."""

@@ -7,6 +7,7 @@ from app.analysis.service import analyse_asset
 from app.market_data.service import get_latest_prices
 from app.risk.service import assess_signal_risk, filter_signal
 from app.regime.service import get_current_regime
+from app.events.service import get_recent_events
 from app.impact.rules import TRACKED_SYMBOLS
 from app.core import cache
 from app.core.logging import get_logger
@@ -24,13 +25,18 @@ def run_signal_pipeline(db: Session) -> int:
     impact_map    = get_asset_impact(db, hours=24)
     latest_prices = {p["symbol"]: p["close"] for p in get_latest_prices(db)}
     regime        = _safe_get_regime(db)
+    all_events    = get_recent_events(db, hours=24)
     generated     = 0
 
     for symbol in TRACKED_SYMBOLS:
         try:
-            impact        = impact_map.get(symbol, {"score": 0.0, "direction": "neutral", "strength": 0.0})
-            analysis      = analyse_asset(db, symbol)
-            current_price = latest_prices.get(symbol)
+            impact          = impact_map.get(symbol, {"score": 0.0, "direction": "neutral", "strength": 0.0})
+            analysis        = analyse_asset(db, symbol)
+            current_price   = latest_prices.get(symbol)
+            asset_events    = [
+                e for e in all_events
+                if symbol in (e.get("affected_assets") or [])
+            ]
 
             signal_data = generate_signal(
                 symbol=symbol,
@@ -38,6 +44,7 @@ def run_signal_pipeline(db: Session) -> int:
                 analysis=analysis,
                 current_price=current_price,
                 regime=regime,
+                triggering_events=asset_events[:5],
             )
 
             if not signal_data:
@@ -104,6 +111,7 @@ def _persist_signal(db: Session, data: dict) -> None:
         time_horizon=data["time_horizon"],
         risk_level=data["risk_level"],
         reasoning=data["reasoning"],
+        event_ids=data.get("event_ids", []),
         entry_price=data.get("entry_price"),
         stop_loss=data.get("stop_loss"),
         take_profit=data.get("take_profit"),

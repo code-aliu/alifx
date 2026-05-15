@@ -24,6 +24,7 @@ def generate_signal(
     analysis: dict,
     current_price: float,
     regime: dict | None = None,
+    triggering_events: list[dict] | None = None,
 ) -> dict | None:
     """Combine event impact + technical analysis into a trading signal.
 
@@ -195,18 +196,35 @@ def generate_signal(
         stop_loss   = round(current_price * 1.03, 6)
         take_profit = round(current_price * 0.94, 6)
 
+    # ── 9. Triggering events ──────────────────────────────────────────────────
+    top_triggers: list[dict] = []
+    if triggering_events:
+        # Prefer events that align with the final signal direction
+        aligned = [
+            e for e in triggering_events
+            if (direction == "BUY"  and e.get("sentiment") == "bullish") or
+               (direction == "SELL" and e.get("sentiment") == "bearish") or
+               direction == "HOLD"
+        ]
+        top_triggers = (aligned or triggering_events)[:3]
+        for ev in top_triggers:
+            headline = (ev.get("headline") or "")[:80]
+            reasoning.append(f"Triggered by [{ev.get('importance','?')} {ev.get('sentiment','?')}]: {headline}")
+
     return {
-        "asset":        symbol,
-        "signal":       direction,
-        "confidence":   round(confidence_score, 1),
-        "time_horizon": TIME_HORIZON,
-        "risk_level":   risk_level,
-        "reasoning":    reasoning,
-        "entry_price":  current_price,
-        "stop_loss":    stop_loss,
-        "take_profit":  take_profit,
-        "generated_at": datetime.utcnow(),
-        "expires_at":   datetime.utcnow() + timedelta(hours=24),
+        "asset":              symbol,
+        "signal":             direction,
+        "confidence":         round(confidence_score, 1),
+        "time_horizon":       TIME_HORIZON,
+        "risk_level":         risk_level,
+        "reasoning":          reasoning,
+        "entry_price":        current_price,
+        "stop_loss":          stop_loss,
+        "take_profit":        take_profit,
+        "generated_at":       datetime.utcnow(),
+        "expires_at":         datetime.utcnow() + timedelta(hours=24),
+        "triggering_events":  top_triggers,
+        "event_ids":          [e["id"] for e in top_triggers if e.get("id")],
     }
 
 
