@@ -23,6 +23,7 @@ def generate_signal(
     impact: dict,
     analysis: dict,
     current_price: float,
+    regime: dict | None = None,
 ) -> dict | None:
     """Combine event impact + technical analysis into a trading signal.
 
@@ -133,7 +134,23 @@ def generate_signal(
 
     has_ta_confirmation = ta_direction != 0
 
-    # ── 3. Dual requirement check ─────────────────────────────────────────────
+    # ── 3. Regime adjustment ──────────────────────────────────────────────────
+    # Applied before the BUY/SELL/HOLD gate so regime can push borderline
+    # signals across the threshold in either direction.
+    if regime:
+        primary_regime = regime.get("primary_regime")
+        delta          = _regime_delta(primary_regime)
+        if delta != 0:
+            confidence_score += delta
+            sign = "+" if delta > 0 else ""
+            reasoning.append(
+                f"Regime ({primary_regime}): confidence adjusted {sign}{delta:.0f} "
+                f"[confidence={regime.get('confidence', 0):.0%}]"
+            )
+            for r_line in regime.get("reasoning", []):
+                reasoning.append(f"  · {r_line}")
+
+    # ── 4. Dual requirement check ─────────────────────────────────────────────
     # Per spec: BUY or SELL requires BOTH event bias AND technical confirmation.
     # If either is missing, signal is HOLD.
     if not has_event_bias:
@@ -141,7 +158,7 @@ def generate_signal(
     if not has_ta_confirmation:
         reasoning.append("Signal held: no clear technical confirmation")
 
-    # ── 4. Conflict check ─────────────────────────────────────────────────────
+    # ── 5. Conflict check ─────────────────────────────────────────────────────
     event_bullish = impact_dir == "bullish"
     ta_bullish    = ta_direction > 0
     event_bearish = impact_dir == "bearish"
@@ -152,7 +169,7 @@ def generate_signal(
         confidence_score = min(confidence_score, 58.0)
         reasoning.append("Event and technical signals are conflicting — confidence capped")
 
-    # ── 5. Determine direction ────────────────────────────────────────────────
+    # ── 6. Determine direction ────────────────────────────────────────────────
     confidence_score = max(5.0, min(95.0, confidence_score))
 
     both_present = has_event_bias and has_ta_confirmation
@@ -164,11 +181,11 @@ def generate_signal(
     else:
         direction = "HOLD"
 
-    # ── 6. Risk level ─────────────────────────────────────────────────────────
+    # ── 7. Risk level ─────────────────────────────────────────────────────────
     vol = indicators.get("volatility", {})
     risk_level = vol.get("level", "medium") if vol.get("available") else "medium"
 
-    # ── 7. Stop-loss / take-profit (ATR-based in risk engine, placeholders here)
+    # ── 8. Stop-loss / take-profit (ATR-based in risk engine, placeholders here)
     stop_loss   = None
     take_profit = None
     if current_price and direction == "BUY":
@@ -199,3 +216,13 @@ def _impact_boost(score: float) -> float:
     elif score >= 2:
         return IMPACT_MEDIUM_WEIGHT
     return IMPACT_LOW_WEIGHT
+
+
+def _regime_delta(regime: str | None) -> float:
+    """Return the confidence adjustment for a given primary regime.
+
+    Positive = bullish tailwind (helps BUY, hurts SELL).
+    Negative = bearish tailwind (hurts BUY, helps SELL via lower confidence).
+    """
+    from app.regime.detector import REGIME_SIGNAL_DELTA
+    return REGIME_SIGNAL_DELTA.get(regime or "", 0.0)

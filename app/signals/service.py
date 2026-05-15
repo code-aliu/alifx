@@ -6,6 +6,7 @@ from app.impact.service import get_asset_impact
 from app.analysis.service import analyse_asset
 from app.market_data.service import get_latest_prices
 from app.risk.service import assess_signal_risk, filter_signal
+from app.regime.service import get_current_regime
 from app.impact.rules import TRACKED_SYMBOLS
 from app.core import cache
 from app.core.logging import get_logger
@@ -22,6 +23,7 @@ def run_signal_pipeline(db: Session) -> int:
     """
     impact_map    = get_asset_impact(db, hours=24)
     latest_prices = {p["symbol"]: p["close"] for p in get_latest_prices(db)}
+    regime        = _safe_get_regime(db)
     generated     = 0
 
     for symbol in TRACKED_SYMBOLS:
@@ -35,6 +37,7 @@ def run_signal_pipeline(db: Session) -> int:
                 impact=impact,
                 analysis=analysis,
                 current_price=current_price,
+                regime=regime,
             )
 
             if not signal_data:
@@ -64,16 +67,21 @@ def run_signal_pipeline(db: Session) -> int:
                     f"due to {risk['risk_level']} volatility (ATR-based)"
                 )
             if risk.get("market_regime") != "unknown":
-                signal_data["reasoning"].append(f"Market regime: {risk['market_regime']}")
+                signal_data["reasoning"].append(f"Price regime (ATR): {risk['market_regime']}")
             if risk.get("risk_reward"):
                 signal_data["reasoning"].append(f"Risk/reward ratio: {risk['risk_reward']}:1")
 
             signal_data["risk_metadata"] = {
-                "risk_score":     risk["risk_score"],
-                "market_regime":  risk["market_regime"],
-                "risk_reward":    risk.get("risk_reward"),
+                "risk_score":      risk["risk_score"],
+                "market_regime":   risk["market_regime"],
+                "risk_reward":     risk.get("risk_reward"),
                 "position_sizing": risk["position_sizing"],
-                "atr":            risk["atr"],
+                "atr":             risk["atr"],
+                "regime":          {
+                    "primary":    regime.get("primary_regime") if regime else None,
+                    "confidence": regime.get("confidence") if regime else None,
+                    "secondary":  regime.get("secondary_regimes") if regime else [],
+                },
             }
 
             _persist_signal(db, signal_data)
@@ -129,6 +137,16 @@ def get_latest_signals(db: Session) -> list[dict]:
 
     results.sort(key=lambda x: x.get("confidence", 0), reverse=True)
     return results
+
+
+def _safe_get_regime(db: Session) -> dict | None:
+    """Fetch current regime, returning None on any failure so the signal pipeline
+    continues even if regime detection has no price data yet."""
+    try:
+        return get_current_regime(db)
+    except Exception as e:
+        logger.warning(f"Regime detection skipped: {e}")
+        return None
 
 
 def get_signals_for_asset(db: Session, symbol: str, limit: int = 10) -> list[dict]:
