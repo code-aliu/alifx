@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     app_env: str = Field(default="development", env="APP_ENV")
     log_level: str = Field(default="INFO", env="LOG_LEVEL")
 
+    # LLM provider selection: "anthropic" | "openai" | "auto"
+    # "auto" tries Anthropic first, then OpenAI, then template fallback.
+    llm_provider: str = Field(default="auto", env="LLM_PROVIDER")
+
     @property
     def is_development(self) -> bool:
         return self.app_env == "development"
@@ -38,7 +42,7 @@ class Settings(BaseSettings):
 
     @property
     def copilot_enabled(self) -> bool:
-        return bool(self.anthropic_api_key)
+        return bool(self.anthropic_api_key or self.openai_api_key)
 
     class Config:
         env_file = ".env"

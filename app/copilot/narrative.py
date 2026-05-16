@@ -25,12 +25,22 @@ logger = get_logger(__name__)
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def daily_market_summary(db: Session, api_key: str = "") -> dict:
+def daily_market_summary(
+    db: Session,
+    api_key: str = "",
+    anthropic_key: str = "",
+    openai_key: str = "",
+    provider: str = "auto",
+) -> dict:
     """Full daily market overview: regime, signals, events, portfolio, performance."""
+    anthropic_key = anthropic_key or api_key
     ctx       = retrieve_context(db, intent="narrative")
     assembled = assemble(ctx)
     question  = "Give me a complete daily market summary covering regime, key signals, macro events, and portfolio risks."
-    narrative, generated_by = generate_response(question, assembled, "narrative", None, api_key)
+    narrative, generated_by = generate_response(
+        question, assembled, "narrative", None,
+        anthropic_key=anthropic_key, openai_key=openai_key, provider=provider,
+    )
 
     regime        = ctx.get("regime") or {}
     signals       = ctx.get("signals") or []
@@ -75,8 +85,16 @@ def daily_market_summary(db: Session, api_key: str = "") -> dict:
     }
 
 
-def top_signals_report(db: Session, limit: int = 5, api_key: str = "") -> dict:
+def top_signals_report(
+    db: Session,
+    limit: int = 5,
+    api_key: str = "",
+    anthropic_key: str = "",
+    openai_key: str = "",
+    provider: str = "auto",
+) -> dict:
     """Highest confidence signals with brief reasoning for each."""
+    anthropic_key = anthropic_key or api_key
     ctx       = retrieve_context(db, intent="narrative")
     signals   = ctx.get("signals") or []
     regime    = ctx.get("regime") or {}
@@ -86,7 +104,10 @@ def top_signals_report(db: Session, limit: int = 5, api_key: str = "") -> dict:
 
     assembled = assemble(ctx)
     question  = f"Summarise the top {limit} highest-confidence trading signals and their key drivers."
-    narrative, generated_by = generate_response(question, assembled, "signal", None, api_key)
+    narrative, generated_by = generate_response(
+        question, assembled, "signal", None,
+        anthropic_key=anthropic_key, openai_key=openai_key, provider=provider,
+    )
 
     return {
         "narrative":    narrative,
@@ -112,12 +133,22 @@ def top_signals_report(db: Session, limit: int = 5, api_key: str = "") -> dict:
     }
 
 
-def portfolio_risk_summary(db: Session, api_key: str = "") -> dict:
+def portfolio_risk_summary(
+    db: Session,
+    api_key: str = "",
+    anthropic_key: str = "",
+    openai_key: str = "",
+    provider: str = "auto",
+) -> dict:
     """Narrative risk report for the current paper trading portfolio."""
+    anthropic_key = anthropic_key or api_key
     ctx       = retrieve_context(db, intent="portfolio")
     assembled = assemble(ctx)
     question  = "Explain the current portfolio risks, directional exposure, and any warnings in plain language."
-    narrative, generated_by = generate_response(question, assembled, "portfolio", None, api_key)
+    narrative, generated_by = generate_response(
+        question, assembled, "portfolio", None,
+        anthropic_key=anthropic_key, openai_key=openai_key, provider=provider,
+    )
 
     portfolio   = ctx.get("portfolio") or {}
     performance = ctx.get("performance") or {}
@@ -140,10 +171,19 @@ def portfolio_risk_summary(db: Session, api_key: str = "") -> dict:
     }
 
 
-def signal_explanation(db: Session, signal_id: int, api_key: str = "") -> dict:
+def signal_explanation(
+    db: Session,
+    signal_id: int,
+    api_key: str = "",
+    anthropic_key: str = "",
+    openai_key: str = "",
+    provider: str = "auto",
+) -> dict:
     """Deep explanation for a single signal by ID."""
     from app.signals.models import TradingSignal
     from app.explainability.service import explain_signal
+
+    anthropic_key = anthropic_key or api_key
 
     signal_row = db.query(TradingSignal).filter(TradingSignal.id == signal_id).first()
     if not signal_row:
@@ -159,7 +199,10 @@ def signal_explanation(db: Session, signal_id: int, api_key: str = "") -> dict:
         f"confidence {signal_row.confidence:.0f}) was generated, "
         f"what drove it, and whether it has confirmation."
     )
-    narrative, generated_by = generate_response(question, assembled, "signal", asset, api_key)
+    narrative, generated_by = generate_response(
+        question, assembled, "signal", asset,
+        anthropic_key=anthropic_key, openai_key=openai_key, provider=provider,
+    )
 
     return {
         "signal_id":       signal_id,

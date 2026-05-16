@@ -1,11 +1,12 @@
 """
 Response generator.
 
-Primary path: Anthropic Claude Haiku via httpx (requires ANTHROPIC_API_KEY).
-Fallback path: deterministic template responses built from assembled context.
+Supports two LLM providers selectable via LLM_PROVIDER env var:
+  - "anthropic"  → Claude Haiku (ANTHROPIC_API_KEY)
+  - "openai"     → GPT-4o-mini  (OPENAI_API_KEY)
+  - "auto"       → Anthropic if key present, else OpenAI, else template
 
-Template responses are complete and financially coherent — the system
-functions fully without an API key.
+Fallback: deterministic template responses — system works without any API key.
 """
 from __future__ import annotations
 import httpx
@@ -14,10 +15,14 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-_ANTHROPIC_URL    = "https://api.anthropic.com/v1/messages"
-_ANTHROPIC_MODEL  = "claude-haiku-4-5-20251001"
+_ANTHROPIC_URL     = "https://api.anthropic.com/v1/messages"
+_ANTHROPIC_MODEL   = "claude-haiku-4-5-20251001"
 _ANTHROPIC_VERSION = "2023-06-01"
-_MAX_TOKENS       = 256
+
+_OPENAI_URL   = "https://api.openai.com/v1/chat/completions"
+_OPENAI_MODEL = "gpt-4o-mini"
+
+_MAX_TOKENS = 256
 
 _SYSTEM_PROMPT = (
     "You are an institutional market intelligence assistant for AliFx, "
@@ -36,21 +41,46 @@ def generate_response(
     assembled_context: str,
     intent: str,
     asset: str | None,
-    api_key: str,
+    anthropic_key: str = "",
+    openai_key: str = "",
+    provider: str = "auto",
 ) -> tuple[str, str]:
     """Return (answer_text, generated_by) where generated_by is model name or 'template'."""
-    if api_key:
+    resolved = _resolve_provider(provider, anthropic_key, openai_key)
+
+    if resolved == "anthropic":
         try:
-            answer = _call_anthropic(question, assembled_context, api_key)
+            answer = _call_anthropic(question, assembled_context, anthropic_key)
             return answer, _ANTHROPIC_MODEL
         except Exception as e:
-            logger.warning(f"Anthropic API call failed, falling back to template: {e}")
+            logger.warning(f"Anthropic call failed, falling back to template: {e}")
+
+    elif resolved == "openai":
+        try:
+            answer = _call_openai(question, assembled_context, openai_key)
+            return answer, _OPENAI_MODEL
+        except Exception as e:
+            logger.warning(f"OpenAI call failed, falling back to template: {e}")
 
     answer = _template_response(intent, asset, assembled_context)
     return answer, "template"
 
 
-# ── LLM path ─────────────────────────────────────────────────────────────────
+def _resolve_provider(provider: str, anthropic_key: str, openai_key: str) -> str:
+    """Resolve the effective provider given config and available keys."""
+    if provider == "anthropic":
+        return "anthropic" if anthropic_key else "template"
+    if provider == "openai":
+        return "openai" if openai_key else "template"
+    # auto: prefer anthropic, fall back to openai
+    if anthropic_key:
+        return "anthropic"
+    if openai_key:
+        return "openai"
+    return "template"
+
+
+# ── LLM paths ─────────────────────────────────────────────────────────────────
 
 def _call_anthropic(question: str, context: str, api_key: str) -> str:
     user_message = f"{context}\n\nQuestion: {question}"
@@ -65,15 +95,28 @@ def _call_anthropic(question: str, context: str, api_key: str) -> str:
         "anthropic-version": _ANTHROPIC_VERSION,
         "content-type":      "application/json",
     }
-    response = httpx.post(
-        _ANTHROPIC_URL,
-        json=payload,
-        headers=headers,
-        timeout=20.0,
-    )
+    response = httpx.post(_ANTHROPIC_URL, json=payload, headers=headers, timeout=20.0)
     response.raise_for_status()
-    data = response.json()
-    return data["content"][0]["text"].strip()
+    return response.json()["content"][0]["text"].strip()
+
+
+def _call_openai(question: str, context: str, api_key: str) -> str:
+    user_message = f"{context}\n\nQuestion: {question}"
+    payload = {
+        "model":      _OPENAI_MODEL,
+        "max_tokens": _MAX_TOKENS,
+        "messages": [
+            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "user",   "content": user_message},
+        ],
+    }
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "content-type":  "application/json",
+    }
+    response = httpx.post(_OPENAI_URL, json=payload, headers=headers, timeout=20.0)
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"].strip()
 
 
 # ── Template path ─────────────────────────────────────────────────────────────

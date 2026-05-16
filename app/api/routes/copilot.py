@@ -38,7 +38,10 @@ def ask(body: AskRequest, db: Session = Depends(get_db)):
     ctx        = retrieve_context(db, intent=intent, asset=asset)
     assembled  = assemble(ctx)
     answer, by = generate_response(
-        body.question, assembled, intent, asset, settings.anthropic_api_key
+        body.question, assembled, intent, asset,
+        anthropic_key=settings.anthropic_api_key,
+        openai_key=settings.openai_api_key,
+        provider=settings.llm_provider,
     )
 
     return ApiResponse(
@@ -58,7 +61,12 @@ def ask(body: AskRequest, db: Session = Depends(get_db)):
 @router.get("/market-summary", response_model=ApiResponse)
 def market_summary(db: Session = Depends(get_db)):
     """Full daily market narrative: regime, signals, macro events, portfolio, performance."""
-    result = narr.daily_market_summary(db, api_key=settings.anthropic_api_key)
+    result = narr.daily_market_summary(
+        db,
+        anthropic_key=settings.anthropic_api_key,
+        openai_key=settings.openai_api_key,
+        provider=settings.llm_provider,
+    )
     return ApiResponse(success=True, data=result)
 
 
@@ -67,7 +75,12 @@ def market_summary(db: Session = Depends(get_db)):
 @router.get("/top-signals", response_model=ApiResponse)
 def top_signals(limit: int = 5, db: Session = Depends(get_db)):
     """Highest-confidence BUY/SELL signals with brief AI explanation of each."""
-    result = narr.top_signals_report(db, limit=limit, api_key=settings.anthropic_api_key)
+    result = narr.top_signals_report(
+        db, limit=limit,
+        anthropic_key=settings.anthropic_api_key,
+        openai_key=settings.openai_api_key,
+        provider=settings.llm_provider,
+    )
     return ApiResponse(success=True, data=result)
 
 
@@ -76,7 +89,12 @@ def top_signals(limit: int = 5, db: Session = Depends(get_db)):
 @router.get("/signal-explanation/{signal_id}", response_model=ApiResponse)
 def signal_explanation(signal_id: int, db: Session = Depends(get_db)):
     """Deep explanation for a specific signal: why it was generated, what confirmed it, regime context."""
-    result = narr.signal_explanation(db, signal_id, api_key=settings.anthropic_api_key)
+    result = narr.signal_explanation(
+        db, signal_id,
+        anthropic_key=settings.anthropic_api_key,
+        openai_key=settings.openai_api_key,
+        provider=settings.llm_provider,
+    )
     if result.get("error") == "signal_not_found":
         raise HTTPException(status_code=404, detail=f"Signal {signal_id} not found")
     return ApiResponse(success=True, data=result)
@@ -87,5 +105,10 @@ def signal_explanation(signal_id: int, db: Session = Depends(get_db)):
 @router.get("/portfolio-risk-summary", response_model=ApiResponse)
 def portfolio_risk_summary(db: Session = Depends(get_db)):
     """Narrative risk report: exposure, concentration, correlated pairs, warnings."""
-    result = narr.portfolio_risk_summary(db, api_key=settings.anthropic_api_key)
+    result = narr.portfolio_risk_summary(
+        db,
+        anthropic_key=settings.anthropic_api_key,
+        openai_key=settings.openai_api_key,
+        provider=settings.llm_provider,
+    )
     return ApiResponse(success=True, data=result)
