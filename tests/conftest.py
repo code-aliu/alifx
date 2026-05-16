@@ -14,6 +14,11 @@ from sqlalchemy.orm import sessionmaker
 from app.database import Base
 from app.news.models import NewsArticle
 from app.events.models import MarketEvent
+# Ensure all models are registered with Base before any db fixture calls create_all
+from app.signals.models import TradingSignal  # noqa: F401
+from app.market_data.models import PriceBar  # noqa: F401
+from app.paper_trading.models import PaperTrade, PaperPortfolio  # noqa: F401
+from app.signal_tracking.models import SignalOutcome  # noqa: F401
 
 
 # ── Database fixture ──────────────────────────────────────────────────────────

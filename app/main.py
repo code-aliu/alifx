@@ -9,7 +9,7 @@ from app.api.routes import (
     health, market_data, events, signals, analysis,
     paper_trading, technical_analysis, paper_trading_aliases, regime,
     market_intel, explainability, reasoning,
-    performance, replay, portfolio_intelligence,
+    performance, replay, portfolio_intelligence, copilot,
 )
 
 setup_logging()
@@ -85,6 +85,7 @@ app.include_router(reasoning.router)
 app.include_router(performance.router)
 app.include_router(replay.router)
 app.include_router(portfolio_intelligence.router)
+app.include_router(copilot.router)
 
 
 @app.get("/", tags=["System"])

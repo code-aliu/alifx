@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     # API keys
     newsapi_key: str = Field(default="", env="NEWSAPI_KEY")
     openai_api_key: str = Field(default="", env="OPENAI_API_KEY")
+    anthropic_api_key: str = Field(default="", env="ANTHROPIC_API_KEY")
     alpha_vantage_key: str = Field(default="", env="ALPHA_VANTAGE_KEY")
 
     # External base URLs
@@ -34,6 +35,10 @@ class Settings(BaseSettings):
     @property
     def llm_enabled(self) -> bool:
         return bool(self.openai_api_key)
+
+    @property
+    def copilot_enabled(self) -> bool:
+        return bool(self.anthropic_api_key)
 
     class Config:
         env_file = ".env"
