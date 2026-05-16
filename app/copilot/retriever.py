@@ -50,6 +50,14 @@ def retrieve_context(db: Session, intent: str, asset: str | None = None) -> dict
         ctx["performance"]    = _safe(lambda: _get_performance(db))
         ctx["signals"]        = _safe(lambda: _get_all_signals(db))
 
+    elif intent in ("education", "guidance", "macro"):
+        # Broad context — regime + events + signals gives maximum grounding
+        ctx["signals"]        = _safe(lambda: _get_all_signals(db))
+        ctx["events"]         = _safe(lambda: _get_recent_events(db, limit=10))
+        ctx["portfolio"]      = _safe(lambda: _get_portfolio_intelligence(db))
+        if asset:
+            _enrich_signal_context(db, ctx, asset)
+
     elif intent == "narrative":
         ctx["signals"]        = _safe(lambda: _get_all_signals(db))
         ctx["events"]         = _safe(lambda: _get_recent_events(db, limit=8))

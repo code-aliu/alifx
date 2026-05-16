@@ -10,13 +10,18 @@ from app.copilot.retriever import retrieve_context
 from app.copilot.assembler import assemble
 from app.copilot.generator import generate_response
 from app.copilot import narrative as narr
+from app.explanation.engine import enrich_context
+from app.profiles.service import get_active_profile
 
 router = APIRouter(prefix="/copilot", tags=["AI Copilot"])
 
+_VALID_LEVELS = {"beginner", "intermediate", "advanced"}
+
 
 class AskRequest(BaseModel):
-    question: str = Field(..., min_length=3, max_length=500)
-    asset: str | None = Field(default=None, description="Optional asset hint (BTC, SPY, EURUSD…)")
+    question:   str      = Field(..., min_length=3, max_length=500)
+    asset:      str | None = Field(default=None)
+    user_level: str | None = Field(default=None, description="beginner | intermediate | advanced")
 
 
 # ── /ask ─────────────────────────────────────────────────────────────────────
@@ -25,33 +30,46 @@ class AskRequest(BaseModel):
 def ask(body: AskRequest, db: Session = Depends(get_db)):
     """Free-form natural language question about market conditions.
 
-    Examples:
-    - Why is BTC bearish today?
-    - What macro events are affecting markets?
-    - What risks exist in the current portfolio?
-    - Which signals have highest confidence?
+    Adapts language complexity and depth based on user_level
+    (beginner / intermediate / advanced). Defaults to stored profile level.
     """
-    routing    = classify(body.question)
-    intent     = routing["intent"]
-    asset      = body.asset or routing["asset"]
+    # Resolve user level: request override → stored profile → default
+    if body.user_level and body.user_level in _VALID_LEVELS:
+        user_level = body.user_level
+    else:
+        profile    = get_active_profile(db)
+        user_level = profile.get("mode", "intermediate")
 
-    ctx        = retrieve_context(db, intent=intent, asset=asset)
-    assembled  = assemble(ctx)
+    routing   = classify(body.question)
+    intent    = routing["intent"]
+    asset     = body.asset or routing["asset"]
+
+    ctx       = retrieve_context(db, intent=intent, asset=asset)
+    assembled = assemble(ctx)
+
+    # Inject educational context for relevant intents/levels
+    enriched, injected_concepts = enrich_context(
+        assembled, body.question, user_level, intent
+    )
+
     answer, by = generate_response(
-        body.question, assembled, intent, asset,
+        body.question, enriched, intent, asset,
         anthropic_key=settings.anthropic_api_key,
         openai_key=settings.openai_api_key,
         provider=settings.llm_provider,
+        user_level=user_level,
     )
 
     return ApiResponse(
         success=True,
         data={
-            "answer":         answer,
-            "intent_detected":intent,
-            "asset_detected": asset,
-            "generated_by":   by,
-            "context_used":   ctx,
+            "answer":              answer,
+            "intent_detected":     intent,
+            "asset_detected":      asset,
+            "generated_by":        by,
+            "explanation_level":   user_level,
+            "education_injected":  injected_concepts,
+            "context_used":        ctx,
         },
     )
 
@@ -88,7 +106,7 @@ def top_signals(limit: int = 5, db: Session = Depends(get_db)):
 
 @router.get("/signal-explanation/{signal_id}", response_model=ApiResponse)
 def signal_explanation(signal_id: int, db: Session = Depends(get_db)):
-    """Deep explanation for a specific signal: why it was generated, what confirmed it, regime context."""
+    """Deep explanation for a specific signal: why it was generated, regime context."""
     result = narr.signal_explanation(
         db, signal_id,
         anthropic_key=settings.anthropic_api_key,

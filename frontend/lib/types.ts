@@ -109,6 +109,21 @@ export interface PaperTrade {
   closed_at?: string
 }
 
+// ── User Profile ──────────────────────────────────────────────────────────────
+
+export type UserLevel = 'beginner' | 'intermediate' | 'advanced'
+
+export interface UserProfile {
+  mode: UserLevel
+  preferences: {
+    show_educational_context?: boolean
+    show_uncertainty_warnings?: boolean
+    signal_detail_level?: 'minimal' | 'standard' | 'detailed'
+    macro_focus?: boolean
+  }
+  updated_at: string | null
+}
+
 // ── Copilot ───────────────────────────────────────────────────────────────────
 
 export interface CopilotAnswer {
@@ -116,6 +131,8 @@ export interface CopilotAnswer {
   intent_detected: string
   asset_detected: string | null
   generated_by: string
+  explanation_level: UserLevel
+  education_injected: string[]
   context_used: unknown
 }
 

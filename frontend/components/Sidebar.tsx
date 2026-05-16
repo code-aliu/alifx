@@ -10,6 +10,7 @@ const NAV = [
   { href: '/events',    label: 'Events',        icon: '◈' },
   { href: '/portfolio', label: 'Portfolio',     icon: '◻' },
   { href: '/copilot',   label: 'AI Copilot',    icon: '✦' },
+  { href: '/guidance',  label: 'Guidance',      icon: '❓' },
   { href: '/audit',    label: 'Intel Audit',   icon: '◉' },
 ]
 

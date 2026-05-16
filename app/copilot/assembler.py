@@ -21,6 +21,7 @@ def assemble(ctx: dict) -> str:
     _add_portfolio(lines, ctx.get("portfolio"))
     _add_open_trades(lines, ctx.get("open_trades"))
     _add_performance(lines, ctx.get("performance"))
+    _add_conflicts(lines, ctx)
 
     return "\n".join(lines)
 
@@ -143,6 +144,36 @@ def _add_open_trades(lines: list[str], trades: list[dict] | None) -> None:
         pnl  = t.get("unrealized_pnl") or t.get("pnl") or 0
         ep   = t.get("entry_price", "?")
         lines.append(f"  {sym} {dir_} @ {ep} | unrealized PnL: ${pnl:.2f}")
+
+
+def _add_conflicts(lines: list[str], ctx: dict) -> None:
+    """Surface conflicting conditions explicitly so the LLM acknowledges them."""
+    conflicts: list[str] = []
+
+    regime = ctx.get("regime") or {}
+    primary = regime.get("primary_regime", "").lower()
+    signal = ctx.get("signal")
+    signals = ctx.get("signals") or []
+
+    # Bullish signal in risk-off regime — or bearish signal in risk-on regime
+    if signal:
+        sig_dir = signal.get("signal", signal.get("dir", "HOLD"))
+        if sig_dir == "BUY" and "risk_off" in primary:
+            conflicts.append("Bullish signal generated in risk-off macro environment")
+        elif sig_dir == "SELL" and "risk_on" in primary:
+            conflicts.append("Bearish signal generated in risk-on macro environment")
+
+    # Mixed signal board
+    if signals:
+        buys  = sum(1 for s in signals if s.get("signal", s.get("dir")) == "BUY")
+        sells = sum(1 for s in signals if s.get("signal", s.get("dir")) == "SELL")
+        if buys > 0 and sells > 0 and abs(buys - sells) <= 1:
+            conflicts.append(f"Highly mixed signal board: {buys} BUY vs {sells} SELL")
+
+    if conflicts:
+        lines.append("\nCONFLICTING CONDITIONS (acknowledge these in your response):")
+        for c in conflicts:
+            lines.append(f"  ⚡ {c}")
 
 
 def _add_performance(lines: list[str], perf: dict | None) -> None:
