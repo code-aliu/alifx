@@ -143,6 +143,89 @@ export interface MarketSummary {
   generated_at: string
 }
 
+// ── Evaluation ───────────────────────────────────────────────────────────────
+
+export interface EvalDimension {
+  score: number
+  grade: 'A' | 'B' | 'C' | 'D' | 'F'
+  description: string
+}
+
+export interface CalibrationBucket {
+  bucket: string
+  expected_win_rate: number
+  actual_win_rate: number
+  total: number
+  wins: number
+}
+
+export interface EvaluationSummary {
+  overall_quality_score: number
+  evaluated_at: string
+  data_coverage: {
+    total_signals: number
+    directional_signals: number
+    hold_signals: number
+  }
+  dimensions: {
+    reasoning_quality:  EvalDimension
+    explainability:     EvalDimension
+    timing:             EvalDimension
+    calibration:        EvalDimension
+    signal_utility:     EvalDimension
+  }
+  signal_utility: {
+    false_positive_rate: number
+    hold_accuracy: number
+    stale_ratio: number
+    calibration_score: number
+    total_signals: number
+  }
+  timing: {
+    avg_timing_score: number | null
+    stale_rate: number
+    early_signal_rate: number
+    avg_hours_to_resolution: number | null
+  }
+  explainability: {
+    avg_composite: number
+    avg_coherence: number
+    avg_actionability: number
+    avg_conciseness: number
+    avg_financial_meaning: number
+    signals_evaluated: number
+    top_assets: { asset: string; score: number }[]
+    weakest_assets: { asset: string; score: number }[]
+    score_distribution: { excellent: number; good: number; fair: number; poor: number }
+  }
+  regime_performance: {
+    regime: string
+    total_signals: number
+    win_rate: number | null
+  }[]
+  most_reliable_assets: {
+    asset: string
+    explainability: number
+    win_rate: number | null
+  }[]
+  confidence_reliability: CalibrationBucket[]
+  benchmarks: {
+    avg_reasoning_score: number | null
+    direction_match_rate: number
+    strongest_categories: { category: string; score: number }[]
+    weakest_categories: { category: string; score: number }[]
+    scenarios: {
+      scenario_id: string
+      name: string
+      category: string
+      expected_direction: string
+      direction_match: boolean
+      reasoning_score: number | null
+      directional_accuracy_pct: number | null
+    }[]
+  } | null
+}
+
 // ── Performance ───────────────────────────────────────────────────────────────
 
 export interface PerformanceSummary {

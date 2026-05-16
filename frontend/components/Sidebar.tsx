@@ -10,6 +10,7 @@ const NAV = [
   { href: '/events',    label: 'Events',        icon: '◈' },
   { href: '/portfolio', label: 'Portfolio',     icon: '◻' },
   { href: '/copilot',   label: 'AI Copilot',    icon: '✦' },
+  { href: '/audit',    label: 'Intel Audit',   icon: '◉' },
 ]
 
 export function Sidebar() {
@@ -18,7 +19,7 @@ export function Sidebar() {
     <aside className="w-52 shrink-0 bg-zinc-950 border-r border-zinc-800/60 flex flex-col min-h-screen">
       {/* Brand */}
       <div className="px-5 py-5 border-b border-zinc-800/60">
-        <p className="text-white font-semibold tracking-tight text-sm">AliFx</p>
+        <p className="text-white font-semibold tracking-tight text-sm">AliuFx</p>
         <p className="text-zinc-600 text-xs mt-0.5">Market Intelligence</p>
       </div>
 
