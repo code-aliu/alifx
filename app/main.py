@@ -1,3 +1,4 @@
+import threading
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,18 +17,7 @@ setup_logging()
 logger = get_logger(__name__)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    logger.info("AliFx starting up...")
-    Base.metadata.create_all(bind=engine)
-    logger.info("Database tables verified")
-
-    scheduler = create_scheduler()
-    scheduler.start()
-    logger.info("Scheduler started — market data, news, and event pipeline are running")
-
-    # Run an initial fetch immediately on startup so the DB isn't empty
+def _run_startup_pipeline():
     from app.database import SessionLocal
     from app.market_data.service import fetch_and_store_all as fetch_prices
     from app.news.service import fetch_and_store_all as fetch_news
@@ -48,6 +38,20 @@ async def lifespan(app: FastAPI):
         logger.error(f"Initial startup pipeline failed: {e}")
     finally:
         db.close()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    logger.info("AliFx starting up...")
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables verified")
+
+    scheduler = create_scheduler()
+    scheduler.start()
+    logger.info("Scheduler started — market data, news, and event pipeline are running")
+
+    threading.Thread(target=_run_startup_pipeline, daemon=True).start()
 
     yield
 

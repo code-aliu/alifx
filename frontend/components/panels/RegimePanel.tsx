@@ -11,53 +11,42 @@ export function RegimePanel() {
   if (isLoading) return <Card title="Market Regime"><Spinner /></Card>
   if (!regime) return <Card title="Market Regime"><Empty /></Card>
 
-  const strengths = Object.entries(regime.asset_strengths ?? {})
-    .sort(([, a], [, b]) => b - a)
-
-  const top3 = strengths.slice(0, 3)
-  const bot3 = strengths.slice(-3).reverse()
+  const confidencePct = Math.round((regime.confidence ?? 0) * 100)
+  const volRegime = regime.components?.volatility?.regime
+  const secondary = regime.secondary_regimes?.filter(r => r !== regime.primary_regime) ?? []
 
   return (
-    <Card title="Market Regime" subtitle={`Confidence ${regime.confidence?.toFixed(0)}%`}>
+    <Card title="Market Regime" subtitle={`Confidence ${confidencePct}%`}>
       <div className="space-y-4">
         {/* Primary regime */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <Badge
             label={regimeLabel(regime.primary_regime)}
             variant={sentimentVariant(regime.primary_regime)}
           />
-          <Badge label={regime.risk_appetite} variant={sentimentVariant(regime.risk_appetite)} />
-          <Badge label={regime.volatility_regime} variant="default" />
+          {secondary.map(r => (
+            <Badge key={r} label={regimeLabel(r)} variant="default" />
+          ))}
+          {volRegime && <Badge label={volRegime.replace('_', ' ')} variant="default" />}
         </div>
 
         {/* Confidence bar */}
         <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
           <div
             className="h-full bg-blue-500 rounded-full"
-            style={{ width: `${regime.confidence}%` }}
+            style={{ width: `${confidencePct}%` }}
           />
         </div>
 
-        {/* Asset strength table */}
-        <div className="grid grid-cols-2 gap-4 pt-1">
-          <div>
-            <p className="text-xs text-zinc-600 uppercase tracking-widest mb-2">Strongest</p>
-            {top3.map(([asset, score]) => (
-              <div key={asset} className="flex items-center justify-between py-1">
-                <span className="text-xs font-mono text-zinc-300">{asset}</span>
-                <span className="text-xs font-mono text-emerald-400">+{fmt(score, 1)}</span>
-              </div>
-            ))}
-          </div>
-          <div>
-            <p className="text-xs text-zinc-600 uppercase tracking-widest mb-2">Weakest</p>
-            {bot3.map(([asset, score]) => (
-              <div key={asset} className="flex items-center justify-between py-1">
-                <span className="text-xs font-mono text-zinc-300">{asset}</span>
-                <span className="text-xs font-mono text-red-400">{fmt(score, 1)}</span>
-              </div>
-            ))}
-          </div>
+        {/* Components breakdown */}
+        <div className="grid grid-cols-3 gap-2 pt-1">
+          {Object.entries(regime.components ?? {}).map(([key, comp]) => comp?.available && (
+            <div key={key} className="bg-zinc-800/50 rounded p-2">
+              <p className="text-xs text-zinc-600 capitalize mb-1">{key.replace('_', ' ')}</p>
+              <p className="text-xs font-mono text-zinc-300">{comp.regime?.replace('_', ' ')}</p>
+              <p className="text-xs text-zinc-600">{Math.round((comp.confidence ?? 0) * 100)}%</p>
+            </div>
+          ))}
         </div>
 
         {/* Reasoning */}

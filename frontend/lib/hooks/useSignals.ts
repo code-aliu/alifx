@@ -3,10 +3,10 @@ import { fetcher } from '@/lib/api'
 import type { Signal } from '@/lib/types'
 
 export function useSignals() {
-  const { data, error, isLoading } = useSWR<Signal[]>('/signals', fetcher, {
+  const { data, error, isLoading } = useSWR<{ signals: Signal[]; count: number }>('/signals', fetcher, {
     refreshInterval: 30_000,
   })
-  return { signals: data ?? [], error, isLoading }
+  return { signals: data?.signals ?? [], error, isLoading }
 }
 
 export function useSignalSummary() {

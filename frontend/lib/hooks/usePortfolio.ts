@@ -12,19 +12,19 @@ export function usePortfolioIntelligence() {
 }
 
 export function usePaperPortfolio() {
-  const { data, error, isLoading } = useSWR<PaperPortfolio>(
+  const { data, error, isLoading } = useSWR<{ portfolio: PaperPortfolio }>(
     '/paper-trading/portfolio',
     fetcher,
     { refreshInterval: 30_000 }
   )
-  return { portfolio: data, error, isLoading }
+  return { portfolio: data?.portfolio, error, isLoading }
 }
 
 export function usePaperTrades() {
-  const { data, error, isLoading } = useSWR<PaperTrade[]>(
+  const { data, error, isLoading } = useSWR<{ trades: PaperTrade[]; count: number }>(
     '/paper-trading/trades',
     fetcher,
     { refreshInterval: 30_000 }
   )
-  return { trades: data ?? [], error, isLoading }
+  return { trades: data?.trades ?? [], error, isLoading }
 }

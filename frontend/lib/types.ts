@@ -10,12 +10,14 @@ export interface ApiResponse<T = unknown> {
 
 export interface RegimeData {
   primary_regime: string
-  confidence: number
-  volatility_regime: string
-  risk_appetite: string
+  secondary_regimes: string[]
+  confidence: number        // 0–1
   reasoning: string[]
-  asset_strengths: Record<string, number>
-  computed_at: string
+  components: {
+    volatility?: { regime: string; confidence: number; atr_pct?: number; available: boolean }
+    price_trend?: { regime: string; confidence: number; direction?: string; available: boolean }
+    event_flow?:  { regime: string; confidence: number; available: boolean }
+  }
 }
 
 // ── Signals ───────────────────────────────────────────────────────────────────

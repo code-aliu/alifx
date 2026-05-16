@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, Fragment } from 'react'
 import { useSignals } from '@/lib/hooks/useSignals'
 import { Card } from '@/components/ui/Card'
 import { Badge, signalVariant } from '@/components/ui/Badge'
@@ -95,9 +95,8 @@ export function SignalTable({ limit }: { limit?: number }) {
               </thead>
               <tbody>
                 {rows.map((sig, i) => (
-                  <>
+                  <Fragment key={sig.id ?? i}>
                     <tr
-                      key={sig.id ?? i}
                       className="border-b border-zinc-800/50 hover:bg-zinc-800/30 cursor-pointer transition-colors"
                       onClick={() => setExpanded(expanded === i ? null : i)}
                     >
@@ -109,13 +108,13 @@ export function SignalTable({ limit }: { limit?: number }) {
                       <td className="py-2.5 text-right text-zinc-600">{timeAgo(sig.generated_at)}</td>
                     </tr>
                     {expanded === i && (
-                      <tr key={`exp-${i}`} className="bg-zinc-900/50">
+                      <tr className="bg-zinc-900/50">
                         <td colSpan={6} className="px-3 py-3">
                           <SignalDetail sig={sig} />
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 ))}
               </tbody>
             </table>
