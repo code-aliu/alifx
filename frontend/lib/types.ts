@@ -63,31 +63,48 @@ export interface PortfolioIntelligence {
   status: string
   open_positions: number
   total_open_notional: number
-  directional_exposure: Record<string, number>
-  concentration: Record<string, number>
+  directional_exposure: {
+    risk_on_notional: number
+    risk_off_notional: number
+    risk_on_pct: number
+    risk_off_pct: number
+  }
+  concentration: Record<string, {
+    notional: number
+    direction: string
+    pct_of_portfolio: number
+  }>
   correlation_exposure: string[][]
   conflicting_positions: string[]
   risk_warnings: string[]
-  computed_at: string
 }
 
 export interface PaperPortfolio {
+  id: number
   current_balance: number
   initial_balance: number
   total_pnl: number
-  total_trades: number
-  open_trades: number
+  total_pnl_pct: number
+  trade_count: number
+  win_count: number
+  loss_count: number
+  win_rate: number
+  updated_at: string
 }
 
 export interface PaperTrade {
   id: number
-  asset: string
-  direction: string
+  symbol: string
+  direction: 'BUY' | 'SELL'
   entry_price: number
-  current_price?: number
   quantity: number
+  notional: number
+  confidence?: number
+  stop_loss?: number
+  take_profit?: number
   pnl?: number
-  status: string
+  pnl_pct?: number
+  status: 'open' | 'closed'
   opened_at: string
   closed_at?: string
 }

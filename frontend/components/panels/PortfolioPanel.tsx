@@ -25,7 +25,7 @@ export function PortfolioPanel() {
         <StatCard
           label="Total PnL"
           value={fmtMoney(portfolio?.total_pnl)}
-          sub={portfolio ? fmtPct((portfolio.total_pnl / portfolio.initial_balance) * 100) : undefined}
+          sub={portfolio ? fmtPct(portfolio.total_pnl_pct) : undefined}
           positive={pnlPositive}
         />
         <StatCard
@@ -35,7 +35,7 @@ export function PortfolioPanel() {
         />
         <StatCard
           label="Total Trades"
-          value={String(portfolio?.total_trades ?? '—')}
+          value={String(portfolio?.trade_count ?? '—')}
         />
       </div>
 
@@ -69,9 +69,9 @@ export function PortfolioPanel() {
             <tbody>
               {openTrades.map(t => (
                 <tr key={t.id} className="border-b border-zinc-800/40">
-                  <td className="py-2 font-mono font-semibold text-zinc-200">{t.asset}</td>
+                  <td className="py-2 font-mono font-semibold text-zinc-200">{t.symbol}</td>
                   <td className="py-2">
-                    <Badge label={t.direction} variant={t.direction === 'LONG' ? 'buy' : 'sell'} />
+                    <Badge label={t.direction} variant={t.direction === 'BUY' ? 'buy' : 'sell'} />
                   </td>
                   <td className="py-2 text-right font-mono text-zinc-400">{fmt(t.entry_price)}</td>
                   <td className="py-2 text-right font-mono text-zinc-400">{fmt(t.quantity, 4)}</td>
@@ -90,25 +90,41 @@ export function PortfolioPanel() {
       {intelligence && (
         <div className="grid grid-cols-2 gap-3">
           <Card title="Directional Exposure">
-            {Object.entries(intelligence.directional_exposure).length === 0
-              ? <Empty message="No exposure data" />
-              : Object.entries(intelligence.directional_exposure).map(([asset, exp]) => (
-                <div key={asset} className="flex justify-between py-1.5 border-b border-zinc-800/50 last:border-0">
-                  <span className="text-xs font-mono text-zinc-400">{asset}</span>
-                  <span className={`text-xs font-mono ${exp >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmtMoney(exp)}</span>
+            {intelligence.total_open_notional === 0
+              ? <Empty message="No open positions" />
+              : (
+                <div className="space-y-1.5">
+                  {[
+                    { label: 'Risk-On', notional: intelligence.directional_exposure.risk_on_notional, pct: intelligence.directional_exposure.risk_on_pct, positive: true },
+                    { label: 'Risk-Off', notional: intelligence.directional_exposure.risk_off_notional, pct: intelligence.directional_exposure.risk_off_pct, positive: false },
+                  ].map(row => (
+                    <div key={row.label} className="flex justify-between items-center py-1.5 border-b border-zinc-800/50 last:border-0">
+                      <span className="text-xs text-zinc-400">{row.label}</span>
+                      <div className="text-right">
+                        <span className={`text-xs font-mono ${row.positive ? 'text-emerald-400' : 'text-red-400'}`}>{fmtMoney(row.notional)}</span>
+                        <span className="text-xs text-zinc-600 ml-2">{row.pct.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))
+              )
             }
           </Card>
           <Card title="Concentration">
             {Object.entries(intelligence.concentration).length === 0
               ? <Empty message="No positions" />
               : Object.entries(intelligence.concentration)
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([asset, pct]) => (
+                  .sort(([, a], [, b]) => b.pct_of_portfolio - a.pct_of_portfolio)
+                  .map(([asset, pos]) => (
                     <div key={asset} className="flex justify-between py-1.5 border-b border-zinc-800/50 last:border-0">
-                      <span className="text-xs font-mono text-zinc-400">{asset}</span>
-                      <span className="text-xs font-mono text-zinc-300">{(pct * 100).toFixed(1)}%</span>
+                      <div>
+                        <span className="text-xs font-mono text-zinc-300">{asset}</span>
+                        <span className="text-xs text-zinc-600 ml-2">{pos.direction}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-mono text-zinc-300">{pos.pct_of_portfolio.toFixed(1)}%</span>
+                        <span className="text-xs text-zinc-600 ml-2">{fmtMoney(pos.notional)}</span>
+                      </div>
                     </div>
                   ))
             }

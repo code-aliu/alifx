@@ -4,7 +4,7 @@ import { RegimePanel } from '@/components/panels/RegimePanel'
 import { useRegime } from '@/lib/hooks/useRegime'
 import { Card } from '@/components/ui/Card'
 import { Spinner, Empty } from '@/components/ui/Spinner'
-import { regimeLabel, fmt } from '@/lib/utils'
+import { regimeLabel } from '@/lib/utils'
 
 export default function RegimePage() {
   const { regime, isLoading } = useRegime()
@@ -16,31 +16,28 @@ export default function RegimePage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <RegimePanel />
 
-          {/* Asset strength full table */}
-          <Card title="Asset Strength Rankings" subtitle="Sorted by regime score">
+          {/* Regime components breakdown */}
+          <Card title="Regime Components" subtitle="Signal breakdown by factor">
             {isLoading ? <Spinner /> : !regime ? <Empty /> : (
-              <div className="space-y-1">
-                {Object.entries(regime.asset_strengths ?? {})
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([asset, score], i) => {
-                    const positive = score >= 0
-                    const barWidth = Math.min(Math.abs(score) * 10, 100)
-                    return (
-                      <div key={asset} className="flex items-center gap-3 py-1.5 border-b border-zinc-800/50 last:border-0">
-                        <span className="text-xs text-zinc-600 w-4 text-right">{i + 1}</span>
-                        <span className="text-xs font-mono text-zinc-300 w-16">{asset}</span>
-                        <div className="flex-1 h-1 bg-zinc-800 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${positive ? 'bg-emerald-500' : 'bg-red-500'}`}
-                            style={{ width: `${barWidth}%` }}
-                          />
+              <div className="space-y-3">
+                {Object.entries(regime.components).map(([key, comp]) => {
+                  if (!comp?.available) return null
+                  const pct = Math.round((comp.confidence ?? 0) * 100)
+                  return (
+                    <div key={key} className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-zinc-400 capitalize">{key.replace('_', ' ')}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono text-zinc-300">{comp.regime?.replace(/_/g, ' ')}</span>
+                          <span className="text-xs text-zinc-600">{pct}%</span>
                         </div>
-                        <span className={`text-xs font-mono w-12 text-right ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {positive ? '+' : ''}{fmt(score, 1)}
-                        </span>
                       </div>
-                    )
-                  })}
+                      <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </Card>
