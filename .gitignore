@@ -13,8 +13,7 @@ env/
 .venv/
 
 # Alembic
-migrations/versions/*.py
-!migrations/versions/.gitkeep
+# migration files must be tracked for production deployment
 
 # Logs
 *.log

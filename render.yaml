@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: aliufx-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: aliufx-db
+          property: connectionString
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: LLM_PROVIDER
+        value: auto
+      - key: NEWSAPI_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: MARKET_DATA_POLL_INTERVAL
+        value: "120"
+      - key: NEWS_POLL_INTERVAL
+        value: "300"
+      - key: PIPELINE_RUN_INTERVAL
+        value: "300"
+
+databases:
+  - name: aliufx-db
+    databaseName: aliufx
+    user: aliufx
+    plan: free

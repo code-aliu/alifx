@@ -1,18 +1,29 @@
+import os
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 from alembic import context
 
-# Import all models so Alembic can detect schema changes
 from app.database import Base
-import app.market_data.models   # noqa
-import app.news.models           # noqa
-import app.events.models         # noqa
-import app.signals.models        # noqa
-import app.paper_trading.models  # noqa
+import app.market_data.models        # noqa
+import app.news.models               # noqa
+import app.events.models             # noqa
+import app.signals.models            # noqa
+import app.paper_trading.models      # noqa
+import app.signal_tracking.models    # noqa
+import app.profiles.model            # noqa
 
 config = context.config
+
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+# Override sqlalchemy.url from DATABASE_URL env var when present.
+# Also normalise postgres:// → postgresql:// (Railway/Render use the old scheme).
+_db_url = os.environ.get("DATABASE_URL", config.get_main_option("sqlalchemy.url"))
+if _db_url and _db_url.startswith("postgres://"):
+    _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+if _db_url:
+    config.set_main_option("sqlalchemy.url", _db_url)
 
 target_metadata = Base.metadata
 
