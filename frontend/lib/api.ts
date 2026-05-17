@@ -15,4 +15,4 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   return json as T
 }
 
-export const fetcher = (url: string) => apiFetch(url)
+export const fetcher = <T>(url: string): Promise<T> => apiFetch<T>(url)
