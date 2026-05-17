@@ -10,11 +10,15 @@ export function useProfile() {
   )
 
   async function setLevel(mode: UserLevel) {
+    // Optimistic update — level changes immediately in local SWR cache
+    mutate(prev => (prev ? { ...prev, mode } : { mode, preferences: {}, updated_at: null }), {
+      revalidate: false,
+    })
     await apiFetch('/profile', {
       method: 'PUT',
       body: JSON.stringify({ mode }),
     })
-    mutate()
+    mutate() // confirm with server
   }
 
   return {

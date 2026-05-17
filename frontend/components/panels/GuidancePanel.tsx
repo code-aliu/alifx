@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { apiFetch } from '@/lib/api'
 import { useProfile } from '@/lib/hooks/useProfile'
 import { UserLevelSelector } from '@/components/ui/UserLevelSelector'
@@ -121,21 +121,37 @@ function AnswerCard({ question, answer, concepts, intent, by, onClose }: {
 // ── Main panel ────────────────────────────────────────────────────────────────
 
 export function GuidancePanel() {
-  const { level, setLevel } = useProfile()
-  const [activeQ, setActiveQ]   = useState<string | null>(null)
-  const [answer, setAnswer]     = useState<CopilotAnswer | null>(null)
-  const [loading, setLoading]   = useState(false)
-  const [error, setError]       = useState(false)
+  const { level: profileLevel, setLevel } = useProfile()
+
+  // Local level state — updates immediately on click, doesn't wait for SWR round-trip
+  const [currentLevel, setCurrentLevel] = useState<UserLevel>(profileLevel)
+  const [activeQ, setActiveQ]           = useState<string | null>(null)
+  const [answer, setAnswer]             = useState<CopilotAnswer | null>(null)
+  const [loading, setLoading]           = useState(false)
+  const [error, setError]               = useState(false)
+
+  // Sync from profile on first load
+  useEffect(() => {
+    setCurrentLevel(profileLevel)
+  }, [profileLevel])
+
+  async function handleLevelChange(newLevel: UserLevel) {
+    setCurrentLevel(newLevel) // immediate — so next ask() uses the right level
+    setAnswer(null)           // clear previous answer when switching level
+    setActiveQ(null)
+    await setLevel(newLevel)  // persist
+  }
 
   async function ask(question: string) {
+    if (loading) return
     setActiveQ(question)
-    setAnswer(null)
+    setAnswer(null)   // always clear before new fetch
     setError(false)
     setLoading(true)
     try {
       const data = await apiFetch<CopilotAnswer>('/copilot/ask', {
         method: 'POST',
-        body: JSON.stringify({ question, user_level: level }),
+        body: JSON.stringify({ question, user_level: currentLevel }),
       })
       setAnswer(data)
     } catch {
@@ -150,7 +166,7 @@ export function GuidancePanel() {
       {/* Level selector */}
       <div className="max-w-xs">
         <p className="text-xs text-zinc-500 mb-2">Explanation depth</p>
-        <UserLevelSelector current={level} onChange={setLevel} disabled={loading} />
+        <UserLevelSelector current={currentLevel} onChange={handleLevelChange} disabled={loading} />
       </div>
 
       {/* Active answer */}
@@ -182,7 +198,7 @@ export function GuidancePanel() {
 
       {/* Category grid */}
       {CATEGORIES.map(cat => {
-        const visible = cat.questions.filter(q => q.levels.includes(level))
+        const visible = cat.questions.filter(q => q.levels.includes(currentLevel))
         if (!visible.length) return null
         return (
           <Card key={cat.label} title={`${cat.icon}  ${cat.label}`}>
