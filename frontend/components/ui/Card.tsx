@@ -29,12 +29,12 @@ export function StatCard({
   label, value, sub, positive,
 }: { label: string; value: string; sub?: string; positive?: boolean }) {
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-      <p className="text-xs text-zinc-500 uppercase tracking-widest mb-1">{label}</p>
-      <p className={cn('text-2xl font-mono font-semibold', positive === true ? 'text-emerald-400' : positive === false ? 'text-red-400' : 'text-white')}>
+    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 sm:p-4">
+      <p className="text-xs text-zinc-500 uppercase tracking-widest mb-1 truncate">{label}</p>
+      <p className={cn('text-xl sm:text-2xl font-mono font-semibold', positive === true ? 'text-emerald-400' : positive === false ? 'text-red-400' : 'text-white')}>
         {value}
       </p>
-      {sub && <p className="text-xs text-zinc-600 mt-1">{sub}</p>}
+      {sub && <p className="text-xs text-zinc-600 mt-1 leading-tight">{sub}</p>}
     </div>
   )
 }

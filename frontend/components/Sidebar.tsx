@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { useSidebar } from '@/components/SidebarContext'
 
 const NAV = [
   { href: '/',          label: 'Dashboard',     icon: '▦' },
@@ -11,29 +12,42 @@ const NAV = [
   { href: '/portfolio', label: 'Portfolio',     icon: '◻' },
   { href: '/copilot',   label: 'AI Copilot',    icon: '✦' },
   { href: '/guidance',  label: 'Guidance',      icon: '❓' },
-  { href: '/audit',    label: 'Intel Audit',   icon: '◉' },
+  { href: '/audit',     label: 'Intel Audit',   icon: '◉' },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
+  const { close } = useSidebar()
+
   return (
-    <aside className="w-52 shrink-0 bg-zinc-950 border-r border-zinc-800/60 flex flex-col min-h-screen">
+    <aside className="w-52 shrink-0 bg-zinc-950 border-r border-zinc-800/60 flex flex-col h-full">
       {/* Brand */}
-      <div className="px-5 py-5 border-b border-zinc-800/60">
-        <p className="text-white font-semibold tracking-tight text-sm">AliuFx</p>
-        <p className="text-zinc-600 text-xs mt-0.5">Market Intelligence</p>
+      <div className="px-5 py-5 border-b border-zinc-800/60 flex items-center justify-between">
+        <div>
+          <p className="text-white font-semibold tracking-tight text-sm">AliuFx</p>
+          <p className="text-zinc-600 text-xs mt-0.5">Market Intelligence</p>
+        </div>
+        {/* Close button — mobile only */}
+        <button
+          onClick={close}
+          className="lg:hidden text-zinc-500 hover:text-zinc-300 p-1 rounded"
+          aria-label="Close menu"
+        >
+          ✕
+        </button>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 py-4 px-2 space-y-0.5">
+      <nav className="flex-1 py-4 px-2 space-y-0.5 overflow-y-auto">
         {NAV.map(({ href, label, icon }) => {
           const active = pathname === href
           return (
             <Link
               key={href}
               href={href}
+              onClick={close}
               className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+                'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors',
                 active
                   ? 'bg-zinc-800 text-white'
                   : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900',

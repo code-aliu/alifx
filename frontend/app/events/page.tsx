@@ -5,7 +5,7 @@ export default function EventsPage() {
   return (
     <>
       <TopBar title="Event Intelligence" />
-      <main className="flex-1 overflow-y-auto p-5">
+      <main className="flex-1 overflow-y-auto p-3 sm:p-5">
         <EventFeed />
       </main>
     </>

@@ -12,7 +12,7 @@ export default function RegimePage() {
   return (
     <>
       <TopBar title="Market Regime" />
-      <main className="flex-1 overflow-y-auto p-5 space-y-5">
+      <main className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-3 sm:space-y-5">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <RegimePanel />
 

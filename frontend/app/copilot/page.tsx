@@ -5,8 +5,8 @@ export default function CopilotPage() {
   return (
     <>
       <TopBar title="AI Copilot" />
-      <main className="flex-1 overflow-hidden p-5">
-        <div className="h-full" style={{ height: 'calc(100vh - 7rem)' }}>
+      <main className="flex-1 overflow-hidden p-2 sm:p-5">
+        <div className="h-full" style={{ height: 'calc(100dvh - 7rem)' }}>
           <CopilotChat />
         </div>
       </main>
