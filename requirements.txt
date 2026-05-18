@@ -26,7 +26,7 @@ pandas-ta==0.4.71b0
 
 # Auth
 python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+bcrypt==4.2.1
 python-multipart==0.0.20
 
 # Config / validation
