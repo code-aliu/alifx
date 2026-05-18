@@ -1,8 +1,26 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
+function getToken(): string | null {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem('access_token')
+}
+
+export function setAuthTokens(access: string, refresh: string) {
+  localStorage.setItem('access_token', access)
+  localStorage.setItem('refresh_token', refresh)
+}
+
+export function clearAuthTokens() {
+  localStorage.removeItem('access_token')
+  localStorage.removeItem('refresh_token')
+}
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getToken()
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     ...init,
   })
   if (!res.ok) {

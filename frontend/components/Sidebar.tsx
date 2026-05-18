@@ -1,8 +1,9 @@
 'use client'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useSidebar } from '@/components/SidebarContext'
+import { useAuth } from '@/lib/auth'
 
 const NAV = [
   { href: '/',          label: 'Dashboard',     icon: '▦' },
@@ -18,6 +19,8 @@ const NAV = [
 export function Sidebar() {
   const pathname = usePathname()
   const { close } = useSidebar()
+  const { user, logout, isAdmin } = useAuth()
+  const router = useRouter()
 
   return (
     <aside className="w-52 shrink-0 bg-zinc-950 border-r border-zinc-800/60 flex flex-col h-full">
@@ -60,9 +63,59 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="px-5 py-4 border-t border-zinc-800/60">
-        <p className="text-zinc-700 text-xs font-mono">v0.1.0</p>
+      {/* Footer — user info / auth links */}
+      <div className="px-3 py-3 border-t border-zinc-800/60 space-y-1">
+        {user ? (
+          <>
+            <Link
+              href="/settings"
+              onClick={close}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors w-full',
+                pathname === '/settings'
+                  ? 'bg-zinc-800 text-white'
+                  : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900',
+              )}
+            >
+              <span className="text-xs w-4 text-center opacity-70">⚙</span>
+              Settings
+            </Link>
+            {isAdmin && (
+              <Link
+                href="/admin"
+                onClick={close}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors w-full',
+                  pathname === '/admin'
+                    ? 'bg-zinc-800 text-white'
+                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900',
+                )}
+              >
+                <span className="text-xs w-4 text-center opacity-70">◈</span>
+                Admin
+              </Link>
+            )}
+            <button
+              onClick={async () => { close(); await logout(); router.push('/login') }}
+              className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-zinc-600 hover:text-red-400 hover:bg-zinc-900 transition-colors w-full"
+            >
+              <span className="text-xs w-4 text-center opacity-70">→</span>
+              Sign out
+            </button>
+            <div className="px-3 pt-1">
+              <p className="text-zinc-600 text-xs truncate">{user.email}</p>
+            </div>
+          </>
+        ) : (
+          <Link
+            href="/login"
+            onClick={close}
+            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900 transition-colors"
+          >
+            <span className="text-xs w-4 text-center opacity-70">→</span>
+            Sign in
+          </Link>
+        )}
       </div>
     </aside>
   )

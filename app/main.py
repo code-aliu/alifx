@@ -6,13 +6,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.logging import setup_logging, get_logger
 from app.database import engine, Base
 from app.profiles.model import UserProfile  # noqa: F401 — registers model with Base
+from app.auth.models import User, UserSession, UserPreferences, UserMemory  # noqa: F401
 from app.scheduler.jobs import create_scheduler
 from app.api.routes import (
     health, market_data, events, signals, analysis,
     paper_trading, technical_analysis, paper_trading_aliases, regime,
     market_intel, explainability, reasoning,
     performance, replay, portfolio_intelligence, copilot, evaluation,
-    profiles,
+    profiles, auth, admin,
 )
 
 setup_logging()
@@ -94,6 +95,8 @@ app.include_router(portfolio_intelligence.router)
 app.include_router(copilot.router)
 app.include_router(evaluation.router)
 app.include_router(profiles.router)
+app.include_router(auth.router)
+app.include_router(admin.router)
 
 
 @app.get("/", tags=["System"])
