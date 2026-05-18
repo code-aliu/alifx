@@ -32,8 +32,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const me = await apiFetch<User>('/auth/me')
       setUser(me)
-    } catch {
-      clearAuthTokens()
+    } catch (err) {
+      // Only clear tokens when the server explicitly rejects them (401 = expired/invalid).
+      // On network errors (Render cold start, timeout) keep the token — the user is
+      // still authenticated, the backend was just temporarily unavailable.
+      if (err instanceof Error && err.message.startsWith('401')) {
+        clearAuthTokens()
+      }
     } finally {
       setLoading(false)
     }

@@ -17,12 +17,13 @@ export function clearAuthTokens() {
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken()
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  // Spread init first so our auth headers always take precedence
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...((init?.headers ?? {}) as Record<string, string>),
+  }
   if (token) headers['Authorization'] = `Bearer ${token}`
-  const res = await fetch(`${BASE}${path}`, {
-    headers,
-    ...init,
-  })
+  const res = await fetch(`${BASE}${path}`, { ...init, headers })
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText)
     throw new Error(`${res.status} ${text}`)
