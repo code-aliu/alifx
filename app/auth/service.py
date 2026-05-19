@@ -77,9 +77,12 @@ def delete_all_sessions(db: Session, user_id: int) -> None:
 
 # ── Preferences ───────────────────────────────────────────────────────────────
 
-VALID_RISK  = {"conservative", "balanced", "aggressive"}
-VALID_DEPTH = {"beginner", "intermediate", "advanced"}
-VALID_TYPE  = {"beginner", "intermediate", "advanced"}
+VALID_RISK      = {"conservative", "balanced", "aggressive"}
+VALID_DEPTH     = {"beginner", "intermediate", "advanced"}
+VALID_TYPE      = {"beginner", "intermediate", "advanced"}
+VALID_HORIZON   = {"short_term", "medium_term", "long_term"}
+VALID_MACRO     = {"low", "medium", "high"}
+VALID_PORTFOLIO = {"growth", "income", "balanced", "speculative"}
 
 def upsert_preferences(db: Session, user_id: int, **kwargs) -> UserPreferences:
     prefs = db.query(UserPreferences).filter(UserPreferences.user_id == user_id).first()
@@ -97,6 +100,12 @@ def upsert_preferences(db: Session, user_id: int, **kwargs) -> UserPreferences:
         prefs.preferred_assets = kwargs["preferred_assets"]
     if "market_interests" in kwargs:
         prefs.market_interests = kwargs["market_interests"]
+    if "time_horizon" in kwargs and kwargs["time_horizon"] in VALID_HORIZON:
+        prefs.time_horizon = kwargs["time_horizon"]
+    if "macro_sensitivity" in kwargs and kwargs["macro_sensitivity"] in VALID_MACRO:
+        prefs.macro_sensitivity = kwargs["macro_sensitivity"]
+    if "portfolio_style" in kwargs and kwargs["portfolio_style"] in VALID_PORTFOLIO:
+        prefs.portfolio_style = kwargs["portfolio_style"]
     if kwargs.get("onboarded") is True:
         prefs.onboarded = True
 
@@ -150,6 +159,34 @@ def track_copilot_intent(db: Session, user_id: int, intent: str) -> None:
     db.commit()
 
 
+_FAQ_MAX_LENGTH = 120
+_FAQ_KEEP = 10
+
+def track_faq(db: Session, user_id: int, question: str) -> None:
+    """Store the question text (truncated) as a recently asked FAQ."""
+    key = question.strip()[:_FAQ_MAX_LENGTH]
+    entry = (
+        db.query(UserMemory)
+        .filter(UserMemory.user_id == user_id, UserMemory.type == "faq", UserMemory.key == key)
+        .first()
+    )
+    if entry:
+        entry.value = {**entry.value, "count": entry.value.get("count", 0) + 1}
+        entry.updated_at = datetime.utcnow()
+    else:
+        # Prune if already at limit — remove the oldest
+        existing = (
+            db.query(UserMemory)
+            .filter(UserMemory.user_id == user_id, UserMemory.type == "faq")
+            .order_by(UserMemory.updated_at)
+            .all()
+        )
+        if len(existing) >= _FAQ_KEEP:
+            db.delete(existing[0])
+        db.add(UserMemory(user_id=user_id, type="faq", key=key, value={"count": 1}))
+    db.commit()
+
+
 def get_user_memory_summary(db: Session, user_id: int) -> dict:
     rows = db.query(UserMemory).filter(UserMemory.user_id == user_id).all()
     frequent = sorted(
@@ -162,9 +199,15 @@ def get_user_memory_summary(db: Session, user_id: int) -> dict:
         key=lambda r: r.value.get("count", 0),
         reverse=True,
     )[:3]
+    recent_faqs = sorted(
+        [r for r in rows if r.type == "faq"],
+        key=lambda r: r.updated_at or datetime.min,
+        reverse=True,
+    )[:3]
     return {
         "frequent_assets": [r.key for r in frequent],
-        "top_intents": [r.key for r in top_intents],
+        "top_intents":     [r.key for r in top_intents],
+        "recent_faqs":     [r.key for r in recent_faqs],
     }
 
 
@@ -197,11 +240,14 @@ def export_user_data(db: Session, user_id: int) -> dict:
             "created_at": user.created_at.isoformat() if user.created_at else None,
         },
         "preferences": {
-            "user_type": prefs.user_type if prefs else None,
-            "risk_profile": prefs.risk_profile if prefs else None,
+            "user_type":         prefs.user_type         if prefs else None,
+            "risk_profile":      prefs.risk_profile      if prefs else None,
             "explanation_depth": prefs.explanation_depth if prefs else None,
-            "preferred_assets": prefs.preferred_assets if prefs else [],
-            "market_interests": prefs.market_interests if prefs else [],
+            "preferred_assets":  prefs.preferred_assets  if prefs else [],
+            "market_interests":  prefs.market_interests  if prefs else [],
+            "time_horizon":      prefs.time_horizon      if prefs else None,
+            "macro_sensitivity": prefs.macro_sensitivity if prefs else None,
+            "portfolio_style":   prefs.portfolio_style   if prefs else None,
         } if prefs else {},
         "memory": memory,
         "exported_at": datetime.utcnow().isoformat() + "Z",

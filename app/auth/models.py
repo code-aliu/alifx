@@ -43,6 +43,9 @@ class UserPreferences(Base):
     explanation_depth = Column(String(20), default="intermediate")  # "beginner" | "intermediate" | "advanced"
     preferred_assets  = Column(JSON, default=list)                  # ["EUR/USD", "BTC/USD", ...]
     market_interests  = Column(JSON, default=list)                  # ["forex", "crypto", "macro", ...]
+    time_horizon      = Column(String(20), default="medium_term")   # "short_term" | "medium_term" | "long_term"
+    macro_sensitivity = Column(String(20), default="medium")        # "low" | "medium" | "high"
+    portfolio_style   = Column(String(20), default="balanced")      # "growth" | "income" | "balanced" | "speculative"
     onboarded         = Column(Boolean, default=False)
     updated_at        = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

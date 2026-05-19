@@ -16,6 +16,7 @@ interface Message {
     by: string
     level: UserLevel
     concepts: string[]
+    personalization: Record<string, string | string[]>
   }
 }
 
@@ -69,12 +70,13 @@ export function CopilotChat() {
         role: 'assistant',
         content: data.answer,
         meta: {
-          question: q,
-          intent:   data.intent_detected,
-          asset:    data.asset_detected,
-          by:       data.generated_by,
-          level:    data.explanation_level,
-          concepts: data.education_injected ?? [],
+          question:        q,
+          intent:          data.intent_detected,
+          asset:           data.asset_detected,
+          by:              data.generated_by,
+          level:           data.explanation_level,
+          concepts:        data.education_injected ?? [],
+          personalization: data.personalization_applied ?? {},
         },
       }])
     } catch {
@@ -149,6 +151,23 @@ export function CopilotChat() {
                         </span>
                       ))}
                     </div>
+                  )}
+                  {Object.keys(msg.meta.personalization).length > 0 && (
+                    <details className="group">
+                      <summary className="text-xs text-zinc-600 cursor-pointer hover:text-zinc-400 transition-colors list-none flex items-center gap-1">
+                        <span className="text-zinc-700">◈</span> personalised
+                        <span className="text-zinc-700 group-open:hidden"> ▸</span>
+                        <span className="text-zinc-700 hidden group-open:inline"> ▾</span>
+                      </summary>
+                      <div className="mt-1.5 pl-3 border-l border-zinc-700/40 space-y-0.5">
+                        {Object.entries(msg.meta.personalization).map(([k, v]) => (
+                          <p key={k} className="text-xs text-zinc-600">
+                            <span className="text-zinc-500">{k.replace(/_/g, ' ')}:</span>{' '}
+                            {Array.isArray(v) ? v.join(', ') : v}
+                          </p>
+                        ))}
+                      </div>
+                    </details>
                   )}
                   <div className="flex gap-3 items-center">
                     <span className="text-xs text-zinc-600">intent: {msg.meta.intent}</span>

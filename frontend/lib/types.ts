@@ -134,6 +134,7 @@ export interface CopilotAnswer {
   explanation_level: UserLevel
   education_injected: string[]
   context_used: unknown
+  personalization_applied: Record<string, string | string[]>
 }
 
 export interface MarketSummary {

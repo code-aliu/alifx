@@ -16,8 +16,9 @@ from app.auth.dependencies import get_optional_user
 from app.auth.models import User
 from app.auth.service import (
     get_user_memory_summary, record_asset_interaction,
-    track_feature_usage, track_copilot_intent,
+    track_feature_usage, track_copilot_intent, track_faq,
 )
+from app.copilot.memory import build_personalization_block
 
 router = APIRouter(prefix="/copilot", tags=["AI Copilot"])
 
@@ -54,21 +55,13 @@ def ask(
     ctx       = retrieve_context(db, intent=intent, asset=asset)
     assembled = assemble(ctx)
 
-    # Inject user memory context when authenticated
+    # Build personalization context when authenticated
     memory_block = ""
+    personalization_applied: dict = {}
     if current_user:
-        mem = get_user_memory_summary(db, current_user.id)
+        mem   = get_user_memory_summary(db, current_user.id)
         prefs = current_user.preferences
-        lines = ["USER CONTEXT:"]
-        if prefs:
-            lines.append(f"  Risk profile: {prefs.risk_profile} | Depth: {prefs.explanation_depth}")
-            if prefs.preferred_assets:
-                lines.append(f"  Preferred assets: {', '.join(prefs.preferred_assets[:5])}")
-        if mem.get("frequent_assets"):
-            lines.append(f"  Frequently discussed: {', '.join(mem['frequent_assets'])}")
-        if mem.get("top_intents"):
-            lines.append(f"  Common questions about: {', '.join(mem['top_intents'])}")
-        memory_block = "\n".join(lines) + "\n\n"
+        memory_block, personalization_applied = build_personalization_block(prefs, mem)
 
     enriched, injected_concepts = enrich_context(
         memory_block + assembled, body.question, user_level, intent
@@ -87,6 +80,7 @@ def ask(
         try:
             track_feature_usage(db, current_user.id, "copilot_ask")
             track_copilot_intent(db, current_user.id, intent)
+            track_faq(db, current_user.id, body.question)
             if asset:
                 record_asset_interaction(db, current_user.id, asset)
         except Exception:
@@ -95,13 +89,14 @@ def ask(
     return ApiResponse(
         success=True,
         data={
-            "answer":             answer,
-            "intent_detected":    intent,
-            "asset_detected":     asset,
-            "generated_by":       by,
-            "explanation_level":  user_level,
-            "education_injected": injected_concepts,
-            "context_used":       ctx,
+            "answer":                  answer,
+            "intent_detected":         intent,
+            "asset_detected":          asset,
+            "generated_by":            by,
+            "explanation_level":       user_level,
+            "education_injected":      injected_concepts,
+            "context_used":            ctx,
+            "personalization_applied": personalization_applied,
         },
     )
 

@@ -12,16 +12,34 @@ interface Preferences {
   explanation_depth: string
   preferred_assets: string[]
   market_interests: string[]
+  time_horizon: string
+  macro_sensitivity: string
+  portfolio_style: string
   onboarded: boolean
 }
 
 interface MemoryEntry { type: string; key: string; value: Record<string, unknown>; updated_at: string | null }
 
-const USER_TYPE_OPTIONS = ['beginner', 'intermediate', 'advanced']
-const RISK_OPTIONS      = ['conservative', 'balanced', 'aggressive']
-const DEPTH_OPTIONS     = ['beginner', 'intermediate', 'advanced']
-const ASSET_OPTIONS     = ['EUR/USD', 'GBP/USD', 'USD/JPY', 'BTC/USD', 'ETH/USD', 'XAU/USD', 'SPX', 'NAS100', 'USD/CAD', 'AUD/USD']
-const INTEREST_OPTIONS  = ['forex', 'crypto', 'macro', 'commodities', 'equities', 'technical']
+const USER_TYPE_OPTIONS    = ['beginner', 'intermediate', 'advanced']
+const RISK_OPTIONS         = ['conservative', 'balanced', 'aggressive']
+const ASSET_OPTIONS        = ['EUR/USD', 'GBP/USD', 'USD/JPY', 'BTC/USD', 'ETH/USD', 'XAU/USD', 'SPX', 'NAS100', 'USD/CAD', 'AUD/USD']
+const INTEREST_OPTIONS     = ['forex', 'crypto', 'macro', 'commodities', 'equities', 'technical']
+const HORIZON_OPTIONS      = [
+  { value: 'short_term',  label: 'Short-term',  desc: 'Days to weeks — technicals and catalysts' },
+  { value: 'medium_term', label: 'Medium-term', desc: 'Weeks to months — macro + technicals' },
+  { value: 'long_term',   label: 'Long-term',   desc: 'Months to years — structural trends' },
+]
+const MACRO_OPTIONS        = [
+  { value: 'low',    label: 'Technical',  desc: 'Signal and price-action focus' },
+  { value: 'medium', label: 'Balanced',   desc: 'Macro context + signals' },
+  { value: 'high',   label: 'Macro-led',  desc: 'Central banks, inflation, geopolitics' },
+]
+const PORTFOLIO_OPTIONS    = [
+  { value: 'balanced',    label: 'Balanced',    desc: 'Mix of risk and stability' },
+  { value: 'growth',      label: 'Growth',      desc: 'Momentum and asymmetric upside' },
+  { value: 'income',      label: 'Income',      desc: 'Yield, carry, and low drawdown' },
+  { value: 'speculative', label: 'Speculative', desc: 'Higher risk with stop-loss framing' },
+]
 
 export default function SettingsPage() {
   const { user, loading: authLoading, logout } = useAuth()
@@ -97,6 +115,7 @@ export default function SettingsPage() {
 
   const frequentAssets = memory?.filter(m => m.type === 'frequent_asset').sort((a, b) => ((b.value.count as number) || 0) - ((a.value.count as number) || 0)) ?? []
   const featureUsage   = memory?.filter(m => m.type === 'feature_usage') ?? []
+  const recentFaqs     = memory?.filter(m => m.type === 'faq').sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? '')).slice(0, 5) ?? []
 
   return (
     <>
@@ -165,6 +184,48 @@ export default function SettingsPage() {
                 </div>
               </div>
 
+              <div>
+                <p className="text-xs text-zinc-400 uppercase tracking-widest mb-1">Time Horizon</p>
+                <p className="text-xs text-zinc-600 mb-2">How far ahead do you typically think when investing?</p>
+                <div className="flex gap-2 flex-wrap">
+                  {HORIZON_OPTIONS.map(opt => (
+                    <button key={opt.value}
+                      onClick={() => setPrefs(p => p ? { ...p, time_horizon: opt.value } : p)}
+                      title={opt.desc}
+                      className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${prefs.time_horizon === opt.value ? 'bg-white text-zinc-900 border-white' : 'border-zinc-700 text-zinc-400 hover:border-zinc-500'}`}
+                    >{opt.label}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs text-zinc-400 uppercase tracking-widest mb-1">Analysis Focus</p>
+                <p className="text-xs text-zinc-600 mb-2">Should responses lead with macro context or technical signals?</p>
+                <div className="flex gap-2 flex-wrap">
+                  {MACRO_OPTIONS.map(opt => (
+                    <button key={opt.value}
+                      onClick={() => setPrefs(p => p ? { ...p, macro_sensitivity: opt.value } : p)}
+                      title={opt.desc}
+                      className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${prefs.macro_sensitivity === opt.value ? 'bg-white text-zinc-900 border-white' : 'border-zinc-700 text-zinc-400 hover:border-zinc-500'}`}
+                    >{opt.label}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs text-zinc-400 uppercase tracking-widest mb-1">Portfolio Style</p>
+                <p className="text-xs text-zinc-600 mb-2">What drives your investment decisions?</p>
+                <div className="flex gap-2 flex-wrap">
+                  {PORTFOLIO_OPTIONS.map(opt => (
+                    <button key={opt.value}
+                      onClick={() => setPrefs(p => p ? { ...p, portfolio_style: opt.value } : p)}
+                      title={opt.desc}
+                      className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${prefs.portfolio_style === opt.value ? 'bg-white text-zinc-900 border-white' : 'border-zinc-700 text-zinc-400 hover:border-zinc-500'}`}
+                    >{opt.label}</button>
+                  ))}
+                </div>
+              </div>
+
               {error && <p className="text-red-400 text-xs">{error}</p>}
               <button onClick={save} disabled={saving}
                 className="bg-white text-zinc-900 text-xs font-semibold px-4 py-2 rounded-lg hover:bg-zinc-100 transition-colors disabled:opacity-50"
@@ -199,6 +260,19 @@ export default function SettingsPage() {
                     <span key={m.key} className="text-xs bg-zinc-800 text-zinc-400 px-2.5 py-1 rounded-full capitalize">
                       {m.key.replace(/_/g, ' ')} <span className="text-zinc-600">×{String(m.value.count ?? 0)}</span>
                     </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {recentFaqs.length > 0 && (
+              <div>
+                <p className="text-xs text-zinc-400 uppercase tracking-widest mb-2">Recent questions</p>
+                <div className="space-y-1">
+                  {recentFaqs.map(m => (
+                    <p key={m.key} className="text-xs text-zinc-500 truncate">
+                      {m.key} <span className="text-zinc-700">×{String(m.value.count ?? 0)}</span>
+                    </p>
                   ))}
                 </div>
               </div>
