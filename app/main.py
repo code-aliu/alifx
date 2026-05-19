@@ -1,9 +1,11 @@
 import threading
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.core.logging import setup_logging, get_logger
+from app.core.error_log import log_error
 from app.database import engine, Base
 from app.profiles.model import UserProfile  # noqa: F401 — registers model with Base
 from app.auth.models import User, UserSession, UserPreferences, UserMemory  # noqa: F401
@@ -76,6 +78,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def _capture_errors(request: Request, call_next):
+    try:
+        response = await call_next(request)
+        if response.status_code >= 500:
+            log_error(request.url.path, request.method, f"HTTP {response.status_code}", response.status_code)
+        return response
+    except Exception as exc:
+        log_error(request.url.path, request.method, str(exc), 500)
+        return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 app.include_router(health.router)
 app.include_router(market_data.router)

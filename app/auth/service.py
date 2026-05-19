@@ -1,5 +1,6 @@
 from datetime import datetime
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from app.auth.models import User, UserSession, UserPreferences, UserMemory
 from app.auth.security import hash_password, verify_password, hash_token
@@ -23,7 +24,6 @@ def create_user(db: Session, email: str, name: str, password: str) -> User:
     )
     db.add(user)
     db.flush()
-    # Bootstrap empty preferences
     db.add(UserPreferences(user_id=user.id))
     db.commit()
     db.refresh(user)
@@ -77,8 +77,9 @@ def delete_all_sessions(db: Session, user_id: int) -> None:
 
 # ── Preferences ───────────────────────────────────────────────────────────────
 
-VALID_RISK   = {"conservative", "moderate", "aggressive"}
-VALID_DEPTH  = {"beginner", "intermediate", "advanced"}
+VALID_RISK  = {"conservative", "balanced", "aggressive"}
+VALID_DEPTH = {"beginner", "intermediate", "advanced"}
+VALID_TYPE  = {"beginner", "intermediate", "advanced"}
 
 def upsert_preferences(db: Session, user_id: int, **kwargs) -> UserPreferences:
     prefs = db.query(UserPreferences).filter(UserPreferences.user_id == user_id).first()
@@ -86,6 +87,8 @@ def upsert_preferences(db: Session, user_id: int, **kwargs) -> UserPreferences:
         prefs = UserPreferences(user_id=user_id)
         db.add(prefs)
 
+    if "user_type" in kwargs and kwargs["user_type"] in VALID_TYPE:
+        prefs.user_type = kwargs["user_type"]
     if "risk_profile" in kwargs and kwargs["risk_profile"] in VALID_RISK:
         prefs.risk_profile = kwargs["risk_profile"]
     if "explanation_depth" in kwargs and kwargs["explanation_depth"] in VALID_DEPTH:
@@ -94,6 +97,8 @@ def upsert_preferences(db: Session, user_id: int, **kwargs) -> UserPreferences:
         prefs.preferred_assets = kwargs["preferred_assets"]
     if "market_interests" in kwargs:
         prefs.market_interests = kwargs["market_interests"]
+    if kwargs.get("onboarded") is True:
+        prefs.onboarded = True
 
     db.commit()
     db.refresh(prefs)
@@ -110,8 +115,38 @@ def record_asset_interaction(db: Session, user_id: int, asset: str) -> None:
     )
     if entry:
         entry.value = {**entry.value, "count": entry.value.get("count", 0) + 1, "last_seen": datetime.utcnow().isoformat()}
+        entry.updated_at = datetime.utcnow()
     else:
         db.add(UserMemory(user_id=user_id, type="frequent_asset", key=asset, value={"count": 1, "last_seen": datetime.utcnow().isoformat()}))
+    db.commit()
+
+
+def track_feature_usage(db: Session, user_id: int, feature: str) -> None:
+    """Increment a feature-usage counter in user memory. Used for admin analytics."""
+    entry = (
+        db.query(UserMemory)
+        .filter(UserMemory.user_id == user_id, UserMemory.type == "feature_usage", UserMemory.key == feature)
+        .first()
+    )
+    if entry:
+        entry.value = {**entry.value, "count": entry.value.get("count", 0) + 1, "last_used": datetime.utcnow().isoformat()}
+        entry.updated_at = datetime.utcnow()
+    else:
+        db.add(UserMemory(user_id=user_id, type="feature_usage", key=feature, value={"count": 1, "last_used": datetime.utcnow().isoformat()}))
+    db.commit()
+
+
+def track_copilot_intent(db: Session, user_id: int, intent: str) -> None:
+    entry = (
+        db.query(UserMemory)
+        .filter(UserMemory.user_id == user_id, UserMemory.type == "copilot_intent", UserMemory.key == intent)
+        .first()
+    )
+    if entry:
+        entry.value = {**entry.value, "count": entry.value.get("count", 0) + 1}
+        entry.updated_at = datetime.utcnow()
+    else:
+        db.add(UserMemory(user_id=user_id, type="copilot_intent", key=intent, value={"count": 1}))
     db.commit()
 
 
@@ -122,6 +157,71 @@ def get_user_memory_summary(db: Session, user_id: int) -> dict:
         key=lambda r: r.value.get("count", 0),
         reverse=True,
     )[:5]
+    top_intents = sorted(
+        [r for r in rows if r.type == "copilot_intent"],
+        key=lambda r: r.value.get("count", 0),
+        reverse=True,
+    )[:3]
     return {
         "frequent_assets": [r.key for r in frequent],
+        "top_intents": [r.key for r in top_intents],
     }
+
+
+def get_user_memory_full(db: Session, user_id: int) -> list[dict]:
+    rows = db.query(UserMemory).filter(UserMemory.user_id == user_id).order_by(UserMemory.updated_at.desc()).all()
+    return [
+        {"type": r.type, "key": r.key, "value": r.value, "updated_at": r.updated_at.isoformat() if r.updated_at else None}
+        for r in rows
+    ]
+
+
+def clear_user_memory(db: Session, user_id: int) -> int:
+    count = db.query(UserMemory).filter(UserMemory.user_id == user_id).delete()
+    db.commit()
+    return count
+
+
+def export_user_data(db: Session, user_id: int) -> dict:
+    user = get_user_by_id(db, user_id)
+    if not user:
+        return {}
+    prefs = db.query(UserPreferences).filter(UserPreferences.user_id == user_id).first()
+    memory = get_user_memory_full(db, user_id)
+    return {
+        "account": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "role": user.role,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+        },
+        "preferences": {
+            "user_type": prefs.user_type if prefs else None,
+            "risk_profile": prefs.risk_profile if prefs else None,
+            "explanation_depth": prefs.explanation_depth if prefs else None,
+            "preferred_assets": prefs.preferred_assets if prefs else [],
+            "market_interests": prefs.market_interests if prefs else [],
+        } if prefs else {},
+        "memory": memory,
+        "exported_at": datetime.utcnow().isoformat() + "Z",
+    }
+
+
+# ── Admin analytics helpers ───────────────────────────────────────────────────
+
+def get_feature_usage_totals(db: Session) -> list[dict]:
+    """Aggregate feature usage counts across all users."""
+    rows = db.query(UserMemory).filter(UserMemory.type == "feature_usage").all()
+    totals: dict[str, int] = {}
+    for r in rows:
+        totals[r.key] = totals.get(r.key, 0) + r.value.get("count", 0)
+    return sorted([{"feature": k, "total_calls": v} for k, v in totals.items()], key=lambda x: -x["total_calls"])
+
+
+def get_copilot_intent_totals(db: Session) -> list[dict]:
+    rows = db.query(UserMemory).filter(UserMemory.type == "copilot_intent").all()
+    totals: dict[str, int] = {}
+    for r in rows:
+        totals[r.key] = totals.get(r.key, 0) + r.value.get("count", 0)
+    return sorted([{"intent": k, "count": v} for k, v in totals.items()], key=lambda x: -x["count"])

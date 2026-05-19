@@ -19,7 +19,7 @@ export default function RegisterPage() {
     setLoading(true)
     try {
       await register(email, name, password)
-      router.push('/')
+      router.push('/onboarding')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Registration failed')
     } finally {

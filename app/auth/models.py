@@ -38,10 +38,12 @@ class UserPreferences(Base):
 
     id                = Column(Integer, primary_key=True, index=True)
     user_id           = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
-    risk_profile      = Column(String(20), default="moderate")     # "conservative" | "moderate" | "aggressive"
-    explanation_depth = Column(String(20), default="intermediate") # "beginner" | "intermediate" | "advanced"
-    preferred_assets  = Column(JSON, default=list)                 # ["EUR/USD", "BTC/USD", ...]
-    market_interests  = Column(JSON, default=list)                 # ["forex", "crypto", "macro", ...]
+    user_type         = Column(String(20), default="intermediate")  # "beginner" | "intermediate" | "advanced"
+    risk_profile      = Column(String(20), default="balanced")      # "conservative" | "balanced" | "aggressive"
+    explanation_depth = Column(String(20), default="intermediate")  # "beginner" | "intermediate" | "advanced"
+    preferred_assets  = Column(JSON, default=list)                  # ["EUR/USD", "BTC/USD", ...]
+    market_interests  = Column(JSON, default=list)                  # ["forex", "crypto", "macro", ...]
+    onboarded         = Column(Boolean, default=False)
     updated_at        = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = relationship("User", back_populates="preferences")
@@ -52,7 +54,7 @@ class UserMemory(Base):
 
     id         = Column(Integer, primary_key=True, index=True)
     user_id    = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    type       = Column(String(50), nullable=False)   # "frequent_asset" | "interaction" | "preference"
+    type       = Column(String(50), nullable=False)   # "frequent_asset" | "feature_usage" | "copilot_intent"
     key        = Column(String(100), nullable=False)
     value      = Column(JSON, nullable=False, default=dict)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

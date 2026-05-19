@@ -13,6 +13,7 @@ from app.auth.service import (
     authenticate, create_user, create_session, get_session_by_token,
     delete_session, delete_all_sessions, get_user_by_email,
     upsert_preferences, get_user_by_id,
+    get_user_memory_full, clear_user_memory, export_user_data,
 )
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -95,3 +96,19 @@ def update_preferences(
 ):
     prefs = upsert_preferences(db, current_user.id, **body.model_dump(exclude_none=True))
     return prefs
+
+
+@router.get("/me/memory")
+def get_memory(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return {"memory": get_user_memory_full(db, current_user.id)}
+
+
+@router.delete("/me/memory")
+def reset_memory(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    count = clear_user_memory(db, current_user.id)
+    return {"detail": f"Cleared {count} memory entries"}
+
+
+@router.get("/me/export")
+def export_data(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return export_user_data(db, current_user.id)

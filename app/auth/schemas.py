@@ -53,17 +53,21 @@ class UserOut(BaseModel):
 
 
 class PreferencesIn(BaseModel):
+    user_type: Optional[str] = None
     risk_profile: Optional[str] = None
     explanation_depth: Optional[str] = None
     preferred_assets: Optional[list[str]] = None
     market_interests: Optional[list[str]] = None
+    onboarded: Optional[bool] = None
 
 
 class PreferencesOut(BaseModel):
+    user_type: str
     risk_profile: str
     explanation_depth: str
     preferred_assets: list[str]
     market_interests: list[str]
+    onboarded: bool
     updated_at: Optional[datetime]
 
     model_config = {"from_attributes": True}

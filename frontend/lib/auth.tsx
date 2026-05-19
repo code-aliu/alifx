@@ -64,6 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthTokens(res.access_token, res.refresh_token)
     const me = await apiFetch<User>('/auth/me')
     setUser(me)
+    // Signal to register page that onboarding should follow
+    if (typeof window !== 'undefined') sessionStorage.setItem('new_user', '1')
   }
 
   const logout = async () => {
