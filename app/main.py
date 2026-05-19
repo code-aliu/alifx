@@ -9,13 +9,14 @@ from app.core.error_log import log_error
 from app.database import engine, Base
 from app.profiles.model import UserProfile  # noqa: F401 — registers model with Base
 from app.auth.models import User, UserSession, UserPreferences, UserMemory  # noqa: F401
+from app.analytics.models import FeedbackEvent, AnalyticsEvent  # noqa: F401
 from app.scheduler.jobs import create_scheduler
 from app.api.routes import (
     health, market_data, events, signals, analysis,
     paper_trading, technical_analysis, paper_trading_aliases, regime,
     market_intel, explainability, reasoning,
     performance, replay, portfolio_intelligence, copilot, evaluation,
-    profiles, auth, admin,
+    profiles, auth, admin, analytics,
 )
 
 setup_logging()
@@ -110,6 +111,7 @@ app.include_router(evaluation.router)
 app.include_router(profiles.router)
 app.include_router(auth.router)
 app.include_router(admin.router)
+app.include_router(analytics.router)
 
 
 @app.get("/", tags=["System"])

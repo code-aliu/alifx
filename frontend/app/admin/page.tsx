@@ -27,6 +27,19 @@ interface ApiUsage {
 }
 interface ErrorEntry { timestamp: string; route: string; method: string; error: string; status: number }
 interface AdminUser  { id: number; email: string; name: string; role: string; is_active: boolean; created_at: string }
+interface ProductAnalytics {
+  period_days: number
+  feedback: {
+    total: number
+    useful_pct: number | null
+    avg_clarity: number | null
+    by_feature: Record<string, { total: number; positive: number; useful_pct: number | null; intents: Record<string, number> }>
+  }
+  low_trust_intents: { intent: string; useful_pct: number; total: number }[]
+  event_counts: Record<string, number>
+  retention: { active_7d: number; active_30d: number }
+  daily_trend: { date: string; events: number }[]
+}
 
 function fmt(iso: string | null): string {
   if (!iso) return 'never'
@@ -41,13 +54,14 @@ export default function AdminPage() {
   const { user, loading: authLoading, isAdmin } = useAuth()
   const router = useRouter()
 
-  const [health,    setHealth]    = useState<SystemHealth | null>(null)
-  const [ingestion, setIngestion] = useState<Ingestion | null>(null)
-  const [signals,   setSignals]   = useState<SignalStatus | null>(null)
-  const [usage,     setUsage]     = useState<ApiUsage | null>(null)
-  const [errors,    setErrors]    = useState<ErrorEntry[]>([])
-  const [users,     setUsers]     = useState<AdminUser[]>([])
-  const [error,     setError]     = useState('')
+  const [health,     setHealth]     = useState<SystemHealth | null>(null)
+  const [ingestion,  setIngestion]  = useState<Ingestion | null>(null)
+  const [signals,    setSignals]    = useState<SignalStatus | null>(null)
+  const [usage,      setUsage]      = useState<ApiUsage | null>(null)
+  const [errors,     setErrors]     = useState<ErrorEntry[]>([])
+  const [users,      setUsers]      = useState<AdminUser[]>([])
+  const [analytics,  setAnalytics]  = useState<ProductAnalytics | null>(null)
+  const [error,      setError]      = useState('')
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) router.push('/')
@@ -56,16 +70,17 @@ export default function AdminPage() {
   const loadAll = useCallback(async () => {
     if (!isAdmin) return
     try {
-      const [h, ing, sig, u, err, us] = await Promise.all([
+      const [h, ing, sig, u, err, us, pa] = await Promise.all([
         apiFetch<SystemHealth>('/admin/system'),
         apiFetch<Ingestion>('/admin/ingestion'),
         apiFetch<SignalStatus>('/admin/signals'),
         apiFetch<ApiUsage>('/admin/api-usage'),
         apiFetch<{ errors: ErrorEntry[] }>('/admin/errors'),
         apiFetch<AdminUser[]>('/admin/users'),
+        apiFetch<ProductAnalytics>('/admin/product-analytics'),
       ])
       setHealth(h); setIngestion(ing); setSignals(sig)
-      setUsage(u); setErrors(err.errors); setUsers(us)
+      setUsage(u); setErrors(err.errors); setUsers(us); setAnalytics(pa)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to load')
     }
@@ -224,6 +239,86 @@ export default function AdminPage() {
             </div>
           )}
         </Card>
+
+        {/* Product analytics */}
+        {analytics && (
+          <Card title="Product Analytics">
+            {/* Feedback overview */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <StatCard label="Total Feedback"  value={String(analytics.feedback.total)} />
+              <StatCard label="Useful %"        value={analytics.feedback.useful_pct != null ? `${analytics.feedback.useful_pct}%` : '—'} positive={analytics.feedback.useful_pct != null && analytics.feedback.useful_pct >= 70} />
+              <StatCard label="Avg Clarity"     value={analytics.feedback.avg_clarity != null ? String(analytics.feedback.avg_clarity) : '—'} />
+              <StatCard label="Active 7d"       value={String(analytics.retention.active_7d)} />
+            </div>
+
+            {/* By-feature breakdown */}
+            {Object.keys(analytics.feedback.by_feature).length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs text-zinc-500 uppercase tracking-widest mb-2">Feedback by Feature</p>
+                <div className="space-y-1.5">
+                  {Object.entries(analytics.feedback.by_feature).map(([feat, d]) => (
+                    <div key={feat} className="flex items-center gap-3 text-xs">
+                      <span className="text-zinc-400 capitalize w-24 shrink-0">{feat}</span>
+                      <div className="flex-1 bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                        <div className="h-full bg-emerald-500/60 rounded-full" style={{ width: `${d.useful_pct ?? 0}%` }} />
+                      </div>
+                      <span className="text-zinc-500 w-12 text-right">{d.useful_pct != null ? `${d.useful_pct}%` : '—'}</span>
+                      <span className="text-zinc-600 w-12 text-right">{d.total} votes</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Low trust intents */}
+            {analytics.low_trust_intents.length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs text-zinc-500 uppercase tracking-widest mb-2">Low-Trust Intents</p>
+                <div className="space-y-1.5">
+                  {analytics.low_trust_intents.map(lt => (
+                    <div key={lt.intent} className="flex justify-between text-xs">
+                      <span className="text-zinc-400 capitalize">{lt.intent}</span>
+                      <span className={`font-mono ${lt.useful_pct < 50 ? 'text-red-400' : 'text-amber-400'}`}>{lt.useful_pct}%</span>
+                      <span className="text-zinc-600">{lt.total} votes</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Event counts + retention */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-zinc-500 uppercase tracking-widest mb-2">Event Counts ({analytics.period_days}d)</p>
+                {Object.keys(analytics.event_counts).length === 0 ? (
+                  <p className="text-xs text-zinc-600 italic">No events recorded yet</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {Object.entries(analytics.event_counts).map(([type, count]) => (
+                      <div key={type} className="flex justify-between text-xs">
+                        <span className="text-zinc-400 capitalize">{type.replace(/_/g, ' ')}</span>
+                        <span className="text-white font-mono">{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div>
+                <p className="text-xs text-zinc-500 uppercase tracking-widest mb-2">Retention</p>
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-zinc-400">Active users — 7d</span>
+                    <span className="text-white font-mono">{analytics.retention.active_7d}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-zinc-400">Active users — 30d</span>
+                    <span className="text-white font-mono">{analytics.retention.active_30d}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Users */}
         <Card title="Users">

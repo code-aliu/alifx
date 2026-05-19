@@ -3,12 +3,14 @@ import { useState, useRef, useEffect } from 'react'
 import { apiFetch } from '@/lib/api'
 import { useProfile } from '@/lib/hooks/useProfile'
 import { UserLevelSelector } from '@/components/ui/UserLevelSelector'
+import { FeedbackWidget } from '@/components/ui/FeedbackWidget'
 import type { CopilotAnswer, UserLevel } from '@/lib/types'
 
 interface Message {
   role: 'user' | 'assistant'
   content: string
   meta?: {
+    question: string
     intent: string
     asset: string | null
     by: string
@@ -67,6 +69,7 @@ export function CopilotChat() {
         role: 'assistant',
         content: data.answer,
         meta: {
+          question: q,
           intent:   data.intent_detected,
           asset:    data.asset_detected,
           by:       data.generated_by,
@@ -137,7 +140,6 @@ export function CopilotChat() {
 
               {msg.meta && (
                 <div className="mt-2 pt-2 border-t border-zinc-700/50 space-y-1">
-                  {/* Education callout */}
                   {msg.meta.concepts.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       <span className="text-xs text-zinc-600">concepts:</span>
@@ -154,6 +156,11 @@ export function CopilotChat() {
                     <span className="text-xs text-zinc-700 capitalize">{msg.meta.level}</span>
                     <span className="text-xs text-zinc-700 ml-auto">{msg.meta.by}</span>
                   </div>
+                  <FeedbackWidget
+                    feature="copilot"
+                    question={msg.meta.question}
+                    intent={msg.meta.intent}
+                  />
                 </div>
               )}
             </div>

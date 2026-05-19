@@ -5,6 +5,7 @@ import { useProfile } from '@/lib/hooks/useProfile'
 import { UserLevelSelector } from '@/components/ui/UserLevelSelector'
 import { Card } from '@/components/ui/Card'
 import { Spinner } from '@/components/ui/Spinner'
+import { FeedbackWidget } from '@/components/ui/FeedbackWidget'
 import type { CopilotAnswer, UserLevel } from '@/lib/types'
 
 // ── Curated question library by category ──────────────────────────────────────
@@ -184,14 +185,21 @@ export function GuidancePanel() {
             </div>
           )}
           {answer && !loading && (
-            <AnswerCard
-              question={activeQ!}
-              answer={answer.answer}
-              concepts={answer.education_injected ?? []}
-              intent={answer.intent_detected}
-              by={answer.generated_by}
-              onClose={() => { setAnswer(null); setActiveQ(null) }}
-            />
+            <>
+              <AnswerCard
+                question={activeQ!}
+                answer={answer.answer}
+                concepts={answer.education_injected ?? []}
+                intent={answer.intent_detected}
+                by={answer.generated_by}
+                onClose={() => { setAnswer(null); setActiveQ(null) }}
+              />
+              <FeedbackWidget
+                feature="guidance"
+                question={activeQ ?? undefined}
+                intent={answer.intent_detected}
+              />
+            </>
           )}
         </div>
       )}
