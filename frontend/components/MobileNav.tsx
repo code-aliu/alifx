@@ -4,11 +4,11 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
 const TABS = [
-  { href: '/',          label: 'Home',     icon: '▦' },
-  { href: '/signals',   label: 'Signals',  icon: '▲' },
-  { href: '/copilot',   label: 'Copilot',  icon: '✦' },
-  { href: '/portfolio', label: 'Portfolio',icon: '◻' },
-  { href: '/guidance',  label: 'Guidance', icon: '❓' },
+  { href: '/',             label: 'Home',      icon: '▦' },
+  { href: '/signals',      label: 'Signals',   icon: '▲' },
+  { href: '/copilot',      label: 'Copilot',   icon: '✦' },
+  { href: '/optimization', label: 'Optimizer', icon: '⬡' },
+  { href: '/guidance',     label: 'Guidance',  icon: '❓' },
 ]
 
 export function MobileNav() {

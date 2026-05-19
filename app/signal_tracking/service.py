@@ -49,6 +49,7 @@ def create_signal_outcome(db: Session, signal: dict) -> SignalOutcome | None:
         take_profit=signal.get("take_profit"),
         market_regime=regime.get("primary_regime") if regime else None,
         event_ids=signal.get("event_ids") or [],
+        performance_score=signal.get("quality_score"),  # pre-outcome quality estimate
         created_at=datetime.utcnow(),
     )
     try:

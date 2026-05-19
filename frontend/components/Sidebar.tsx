@@ -6,14 +6,15 @@ import { useSidebar } from '@/components/SidebarContext'
 import { useAuth } from '@/lib/auth'
 
 const NAV = [
-  { href: '/',          label: 'Dashboard',     icon: '▦' },
-  { href: '/regime',    label: 'Market Regime', icon: '◎' },
-  { href: '/signals',   label: 'Signals',       icon: '▲' },
-  { href: '/events',    label: 'Events',        icon: '◈' },
-  { href: '/portfolio', label: 'Portfolio',     icon: '◻' },
-  { href: '/copilot',   label: 'AI Copilot',    icon: '✦' },
-  { href: '/guidance',  label: 'Guidance',      icon: '❓' },
-  { href: '/audit',     label: 'Intel Audit',   icon: '◉' },
+  { href: '/',             label: 'Dashboard',     icon: '▦' },
+  { href: '/regime',       label: 'Market Regime', icon: '◎' },
+  { href: '/signals',      label: 'Signals',       icon: '▲' },
+  { href: '/events',       label: 'Events',        icon: '◈' },
+  { href: '/portfolio',    label: 'Portfolio',     icon: '◻' },
+  { href: '/copilot',      label: 'AI Copilot',    icon: '✦' },
+  { href: '/guidance',     label: 'Guidance',      icon: '❓' },
+  { href: '/audit',        label: 'Intel Audit',   icon: '◉' },
+  { href: '/optimization', label: 'Optimizer',     icon: '⬡' },
 ]
 
 export function Sidebar() {

@@ -11,6 +11,7 @@ from app.events.service import get_recent_events
 from app.impact.rules import TRACKED_SYMBOLS
 from app.core import cache
 from app.core.logging import get_logger
+from app.optimization.optimizer import apply_optimizations
 
 logger = get_logger(__name__)
 
@@ -91,6 +92,16 @@ def run_signal_pipeline(db: Session) -> int:
                 },
             }
 
+            # Strategy optimizer: calibration + regime + asset feedback loop
+            try:
+                opt = apply_optimizations(db, signal_data, regime)
+                signal_data["confidence"]    = opt.final_confidence
+                signal_data["quality_score"] = opt.quality_score
+                signal_data["signal"]        = filter_signal(signal_data["signal"], opt.final_confidence)
+            except Exception as e:
+                logger.debug(f"Optimization skipped for {symbol}: {e}")
+                signal_data["quality_score"] = None
+
             _persist_signal(db, signal_data)
             _cache_signal(symbol, signal_data)
             generated += 1
@@ -124,6 +135,7 @@ def _persist_signal(db: Session, data: dict) -> None:
     try:
         from app.signal_tracking.service import create_signal_outcome
         signal_dict = signal.to_dict()
+        signal_dict["quality_score"] = data.get("quality_score")
         create_signal_outcome(db, signal_dict)
     except Exception as e:
         logger.debug(f"Signal outcome creation skipped: {e}")
