@@ -9,6 +9,7 @@ const TABS = [
   { href: '/copilot',      label: 'Copilot',   icon: '✦' },
   { href: '/optimization', label: 'Optimizer', icon: '⬡' },
   { href: '/guidance',     label: 'Guidance',  icon: '❓' },
+  { href: '/risk',         label: 'Risk',      icon: '⊘' },
 ]
 
 export function MobileNav() {

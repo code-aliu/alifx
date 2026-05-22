@@ -15,6 +15,7 @@ const NAV = [
   { href: '/guidance',     label: 'Guidance',      icon: '❓' },
   { href: '/audit',        label: 'Intel Audit',   icon: '◉' },
   { href: '/optimization', label: 'Optimizer',     icon: '⬡' },
+  { href: '/risk',         label: 'Risk',          icon: '⊘' },
 ]
 
 export function Sidebar() {

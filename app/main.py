@@ -17,6 +17,7 @@ from app.api.routes import (
     market_intel, explainability, reasoning,
     performance, replay, portfolio_intelligence, copilot, evaluation,
     profiles, auth, admin, analytics, memory, optimization,
+    risk_intelligence,
 )
 
 setup_logging()
@@ -114,6 +115,7 @@ app.include_router(admin.router)
 app.include_router(analytics.router)
 app.include_router(memory.router)
 app.include_router(optimization.router)
+app.include_router(risk_intelligence.router)
 
 
 @app.get("/", tags=["System"])
